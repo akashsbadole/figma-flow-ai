@@ -21,6 +21,7 @@ import {
   generateFigmaTokens,
   generateStyleDictionary,
 } from "@/lib/design-system-export";
+import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
 
 export interface GridConfig {
   desktop: { columns: number; gutter: string; margin: string };
