@@ -14,28 +14,53 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Wand2, LayoutGrid, Palette, LogOut, Sparkles, Clock } from "lucide-react";
+import {
+  LayoutDashboard, Wand2, LayoutGrid, Palette, LogOut, Sparkles,
+  Clock, Image, Crown, Shield
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
-const navItems = [
+const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "AI Generator", url: "/generator", icon: Wand2 },
+  { title: "Image to Design", url: "/image-to-design", icon: Image },
   { title: "My Designs", url: "/my-designs", icon: Clock },
   { title: "Templates", url: "/templates", icon: LayoutGrid },
   { title: "Design System", url: "/design-system", icon: Palette },
+  { title: "History", url: "/history", icon: Clock },
+  { title: "Pricing", url: "/pricing", icon: Crown },
 ];
 
 export function AppSidebar() {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle()
+        .then(({ data }) => setIsAdmin(!!data));
+    }
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
+
+  const navItems = isAdmin
+    ? [...mainNavItems, { title: "Admin Panel", url: "/admin", icon: Shield }]
+    : mainNavItems;
 
   return (
     <Sidebar collapsible="icon">
