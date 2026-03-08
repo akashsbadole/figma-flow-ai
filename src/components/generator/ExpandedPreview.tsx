@@ -248,16 +248,38 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
             </div>
           </div>
 
-          <div className="flex-1 bg-muted rounded-xl p-4 flex items-center justify-center overflow-hidden">
+          <div
+            ref={canvasRef}
+            className="flex-1 bg-muted rounded-xl p-4 flex items-center justify-center overflow-hidden relative"
+            onWheel={handleWheel}
+            onMouseDown={handleCanvasMouseDown}
+            style={{ cursor: isPanning ? "grabbing" : "default" }}
+          >
             <div
               style={{
                 width: deviceWidth,
                 height: deviceHeight,
-                transform: `scale(${scale})`,
-                transformOrigin: "top center",
+                transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                transformOrigin: "center center",
+                transition: isPanning ? "none" : "transform 0.15s ease-out",
               }}
             >
               {renderDeviceFrame(iframeRef)}
+            </div>
+
+            {/* Zoom controls */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2 py-1 shadow-md">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomOut}>
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs font-mono w-12 text-center text-muted-foreground">{Math.round(zoom * 100)}%</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomIn}>
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetView}>
+                <Maximize className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
 
