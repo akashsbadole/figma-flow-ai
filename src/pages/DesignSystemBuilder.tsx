@@ -381,7 +381,13 @@ const DesignSystemBuilder = () => {
         { key: "badge", label: "Badge", html: designSystem.components.badgeHtml, css: designSystem.components.badgeCss },
         { key: "alert", label: "Alert", html: designSystem.components.alertHtml, css: designSystem.components.alertCss },
         { key: "avatar", label: "Avatar", html: designSystem.components.avatarHtml, css: designSystem.components.avatarCss },
-      ]
+        { key: "tabs", label: "Tabs", html: designSystem.components.tabsHtml, css: designSystem.components.tabsCss },
+        { key: "modal", label: "Modal", html: designSystem.components.modalHtml, css: designSystem.components.modalCss },
+        { key: "tooltip", label: "Tooltip", html: designSystem.components.tooltipHtml, css: designSystem.components.tooltipCss },
+        { key: "navbar", label: "Navbar", html: designSystem.components.navbarHtml, css: designSystem.components.navbarCss },
+        { key: "toggle", label: "Toggle", html: designSystem.components.toggleHtml, css: designSystem.components.toggleCss },
+        { key: "dropdown", label: "Dropdown", html: designSystem.components.dropdownHtml, css: designSystem.components.dropdownCss },
+      ].filter(c => c.html && c.css)
     : [];
 
   return (
