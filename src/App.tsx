@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Generator from "./pages/Generator";
 import Templates from "./pages/Templates";
 import DesignSystemBuilder from "./pages/DesignSystemBuilder";
+import MyDesigns from "./pages/MyDesigns";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/generator" element={<ProtectedRoute><Generator /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
             <Route path="/design-system" element={<ProtectedRoute><DesignSystemBuilder /></ProtectedRoute>} />
+            <Route path="/my-designs" element={<ProtectedRoute><MyDesigns /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
