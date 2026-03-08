@@ -290,6 +290,11 @@ const AdminPanel = () => {
                         </div>
                       </td>
                       <td className="p-3">
+                        <Badge variant={u.isAdmin ? "default" : "outline"} className={`text-xs ${u.isAdmin ? "bg-yellow-500/20 text-yellow-600 border-yellow-500/30" : ""}`}>
+                          {u.isAdmin ? "Admin" : "User"}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
                         <Badge variant={u.subscription?.plan === "pro" ? "default" : "secondary"} className="text-xs">
                           {u.subscription?.plan === "pro" ? "Pro" : "Free"}
                         </Badge>
