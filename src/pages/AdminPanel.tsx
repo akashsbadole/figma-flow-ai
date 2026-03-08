@@ -33,8 +33,10 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState<(UserProfile & { subscription?: UserSubscription })[]>([]);
+  const [users, setUsers] = useState<(UserProfile & { subscription?: UserSubscription; isAdmin?: boolean })[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<UserFilter>("all");
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkAdmin();
