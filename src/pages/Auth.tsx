@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Sparkles, Mail, Lock, User } from "lucide-react";
+import { Sparkles, Mail, Lock, User, Shield } from "lucide-react";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -23,6 +23,12 @@ const Auth = () => {
     navigate("/dashboard", { replace: true });
     return null;
   }
+
+  const fillCredentials = (email: string, password: string) => {
+    setEmail(email);
+    setPassword(password);
+    setIsLogin(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +144,34 @@ const Auth = () => {
               >
                 {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>
+
+              {isLogin && (
+                <div className="w-full space-y-2 pt-2 border-t border-border/50">
+                  <p className="text-xs text-center text-muted-foreground font-medium">Quick Login</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fillCredentials("demo@aidesignstudio.com", "demo1234")}
+                      className="text-xs gap-1.5"
+                    >
+                      <Shield className="h-3 w-3 text-amber-500" />
+                      Admin
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fillCredentials("user@aidesignstudio.com", "user1234")}
+                      className="text-xs gap-1.5"
+                    >
+                      <User className="h-3 w-3 text-primary" />
+                      User
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardFooter>
           </form>
         </Card>
