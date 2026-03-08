@@ -202,6 +202,7 @@ const DEFAULT_TOKEN_NAMING = [
 const DesignSystemBuilder = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const [brandPrompt, setBrandPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [designSystem, setDesignSystem] = useState<DesignSystemData | null>(null);
