@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Wand2, Palette, LayoutTemplate } from "lucide-react";
+import { Sparkles, Wand2, Palette, LayoutTemplate, PackageOpen } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { PromptInput } from "@/components/generator/PromptInput";
 import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
 import { DesignSystemPreview } from "@/components/generator/DesignSystemPreview";
 import { TemplatesPreview } from "@/components/generator/TemplatesPreview";
 import { useGenerationLimit } from "@/hooks/useGenerationLimit";
+import { exportVariantsAsZip } from "@/lib/export-utils";
 
 interface Variant {
   id: string;
@@ -194,6 +196,23 @@ const Generator = () => {
     }
   };
 
+  const handleBulkExport = async () => {
+    if (!result?.variants.length) return;
+    try {
+      const projectName = currentPrompt.slice(0, 40).replace(/[^a-zA-Z0-9\s-]/g, "").trim().replace(/\s+/g, "-") || "designs";
+      const blob = await exportVariantsAsZip(result.variants, projectName);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "ZIP downloaded!", description: `${result.variants.length} variants exported` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const anyLoading = generating || dsLoading || tplLoading;
   const hasResults = result || designSystem || screens.length > 0 || components.length > 0;
 
@@ -252,11 +271,17 @@ const Generator = () => {
 
               <TabsContent value="variants" className="flex-1 overflow-auto p-6 mt-0">
                 {result && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto"
-                  >
+                  <>
+                    <div className="flex justify-end mb-4 max-w-7xl mx-auto">
+                      <Button variant="outline" size="sm" onClick={handleBulkExport}>
+                        <PackageOpen className="h-4 w-4 mr-1" /> Export All as ZIP
+                      </Button>
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto"
+                    >
                     {result.variants.map((variant, i) => (
                       <motion.div key={variant.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                         <VariantCard
@@ -271,6 +296,7 @@ const Generator = () => {
                       </motion.div>
                     ))}
                   </motion.div>
+                  </>
                 )}
               </TabsContent>
 

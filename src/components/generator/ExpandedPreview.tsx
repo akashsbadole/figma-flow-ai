@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize, FileDown } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { htmlCssToReactComponent } from "@/lib/export-utils";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -171,6 +172,12 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const copyAsReact = async () => {
+    const code = htmlCssToReactComponent(variant.name, editedHtml, editedCss);
+    await navigator.clipboard.writeText(code);
+    toast({ title: "React component copied!" });
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
@@ -264,6 +271,9 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               </Button>
               <Button variant="outline" size="sm" onClick={downloadSvg} disabled={!variant.svg}>
                 <FileDown className="h-4 w-4 mr-1" /> SVG
+              </Button>
+              <Button variant="outline" size="sm" onClick={copyAsReact}>
+                <Braces className="h-4 w-4 mr-1" /> React
               </Button>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />

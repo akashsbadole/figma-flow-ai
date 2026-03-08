@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, Code, Maximize2, FileDown } from "lucide-react";
+import { Check, Copy, Code, Maximize2, FileDown, Braces } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { htmlCssToReactComponent } from "@/lib/export-utils";
 
 interface Variant {
   id: string;
@@ -74,6 +75,12 @@ export function VariantCard({
     const fullCode = `<!DOCTYPE html>\n<html>\n<head>\n<style>\n${variant.css}\n</style>\n</head>\n<body>\n${variant.html}\n</body>\n</html>`;
     await navigator.clipboard.writeText(fullCode);
     toast({ title: "HTML code copied!" });
+  };
+
+  const copyAsReact = async () => {
+    const code = htmlCssToReactComponent(variant.name, variant.html, variant.css);
+    await navigator.clipboard.writeText(code);
+    toast({ title: "React component copied!" });
   };
 
   const downloadSvg = () => {
@@ -188,6 +195,15 @@ export function VariantCard({
               <FileDown className="h-3.5 w-3.5" />
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); copyAsReact(); }}
+            title="Copy as React component"
+          >
+            <Braces className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
