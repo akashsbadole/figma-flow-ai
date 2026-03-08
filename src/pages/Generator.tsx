@@ -136,7 +136,6 @@ const Generator = () => {
           setFormPatterns(data?.formPatterns || []);
           setDataDisplay(data?.dataDisplay || []);
           setNavigationPatterns(data?.navigationPatterns || []);
-        }
         } else {
           setTplError(error?.message || data?.error || "Failed to generate templates");
         }
