@@ -147,16 +147,11 @@ const Auth = () => {
                     onClick={async () => {
                       setLoading(true);
                       try {
-                        // Try sign in first; if it fails, create the demo account then sign in
-                        const { error: signInErr } = await signIn("demo@aidesignstudio.com", "demo1234");
-                        if (signInErr) {
-                          await signUp("demo@aidesignstudio.com", "demo1234", "Demo User");
-                          await signIn("demo@aidesignstudio.com", "demo1234");
-                        }
+                        await signIn("demo@aidesignstudio.com", "demo1234");
                         navigate("/dashboard");
                       } catch {
-                        // Account may already exist, try signing in again
                         try {
+                          await signUp("demo@aidesignstudio.com", "demo1234", "Demo User");
                           await signIn("demo@aidesignstudio.com", "demo1234");
                           navigate("/dashboard");
                         } catch (err: any) {
