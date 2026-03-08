@@ -131,12 +131,46 @@ const AdminPanel = () => {
     }
   };
 
-  const filtered = users.filter(
-    (u) =>
+  const toggleAdminRole = async (userId: string, currentlyAdmin: boolean) => {
+    if (currentlyAdmin) {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "admin");
+      if (error) {
+        toast({ title: "Failed to remove admin", variant: "destructive" });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "admin" } as any);
+      if (error) {
+        toast({ title: "Failed to grant admin", variant: "destructive" });
+        return;
+      }
+    }
+    setAdminIds((prev) => {
+      const next = new Set(prev);
+      currentlyAdmin ? next.delete(userId) : next.add(userId);
+      return next;
+    });
+    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, isAdmin: !currentlyAdmin } : u));
+    toast({ title: currentlyAdmin ? "Admin role removed" : "Admin role granted" });
+  };
+
+  const filtered = users.filter((u) => {
+    const matchesSearch =
       !searchQuery ||
       u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.user_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      u.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filter === "admin") return u.isAdmin;
+    if (filter === "pro") return u.subscription?.plan === "pro";
+    if (filter === "free") return !u.subscription || u.subscription.plan === "free";
+    return true;
+  });
 
   if (!isAdmin && !loading) {
     return (
