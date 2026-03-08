@@ -49,13 +49,13 @@ export function VariantCard({
     const svgContent = variant.svg || `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${deviceWidth} ${deviceHeight}" width="${deviceWidth}" height="${deviceHeight}"><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#888">No SVG available</text></svg>`;
     
     try {
-      const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
       const htmlBlob = new Blob([svgContent], { type: "text/html" });
+      const textBlob = new Blob([svgContent], { type: "text/plain" });
 
       await navigator.clipboard.write([
         new ClipboardItem({
-          "image/svg+xml": svgBlob,
           "text/html": htmlBlob,
+          "text/plain": textBlob,
         }),
       ]);
 
