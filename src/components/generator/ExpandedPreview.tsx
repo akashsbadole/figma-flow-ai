@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import html2canvas from "html2canvas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Variant {
