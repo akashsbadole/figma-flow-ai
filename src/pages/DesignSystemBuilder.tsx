@@ -713,7 +713,7 @@ const DesignSystemBuilder = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-wrap gap-6 items-end">
-                    {(designSystem.iconSizes || DEFAULT_ICON_SIZES).map((ic) => (
+                    {(designSystem.iconSystem?.sizes || designSystem.iconSizes || DEFAULT_ICON_SIZES).map((ic) => (
                       <div key={ic.name} className="text-center">
                         <div className="flex items-center justify-center" style={{ width: ic.value, height: ic.value }}>
                           <Sparkles className="text-primary" style={{ width: ic.value, height: ic.value }} />
@@ -723,8 +723,17 @@ const DesignSystemBuilder = () => {
                       </div>
                     ))}
                   </div>
+                  {designSystem.iconSystem && (
+                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t border-border/50 pt-3">
+                      <span>Stroke: <strong className="text-foreground">{designSystem.iconSystem.strokeWidth}</strong></span>
+                      <span>Grid: <strong className="text-foreground">{designSystem.iconSystem.gridSize}</strong></span>
+                      <span>Corner: <strong className="text-foreground">{designSystem.iconSystem.cornerRadius}</strong></span>
+                    </div>
+                  )}
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-xs text-muted-foreground">Recommended libraries: <span className="font-medium text-foreground">Lucide Icons</span> · <span className="font-medium text-foreground">Heroicons</span> · <span className="font-medium text-foreground">Material Icons</span></p>
+                    <p className="text-xs text-muted-foreground">Recommended: {(designSystem.iconSystem?.recommendedLibraries || ["Lucide Icons", "Heroicons", "Material Icons"]).map((lib, i, arr) => (
+                      <span key={lib} className="font-medium text-foreground">{lib}{i < arr.length - 1 ? " · " : ""}</span>
+                    ))}</p>
                   </div>
                 </CardContent>
               </Card>
