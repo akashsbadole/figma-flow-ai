@@ -649,7 +649,28 @@ const DesignSystemBuilder = () => {
                 </CardContent>
               </Card>
 
-              {/* ===== SECTION 5: BORDER RADIUS ===== */}
+              {/* ===== DARK MODE COLORS ===== */}
+              {designSystem.darkModeColors && Object.keys(designSystem.darkModeColors).length > 0 && (
+                <Card className="shadow-card border-border/50 bg-muted/20">
+                  <CardHeader>
+                    <CardTitle className="text-lg">🌙 4b. Dark Mode Colors</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
+                      {Object.entries(designSystem.darkModeColors).map(([key, val]) => (
+                        <button key={`dark-${key}`} className="group/color space-y-1.5 text-left" onClick={() => copyText(val, `dark-${key}`)}>
+                          <div className="h-16 rounded-lg border border-border/50 shadow-sm group-hover/color:ring-2 ring-primary transition-all" style={{ backgroundColor: val }} />
+                          <p className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                            {val} {copiedKey === `dark-${key}` && <Check className="h-3 w-3 text-accent" />}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Card className="shadow-card border-border/50">
                 <CardHeader>
                   <CardTitle className="text-lg">◻️ 5. Border Radius</CardTitle>
