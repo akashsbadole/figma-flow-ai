@@ -7,6 +7,7 @@ import {
   Zap, Monitor, Accessibility, FolderTree, MousePointerClick, Eye, Code
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
 
 interface DesignSystemData {
   name: string;
