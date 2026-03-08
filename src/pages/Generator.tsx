@@ -52,6 +52,10 @@ const Generator = () => {
   // Templates state
   const [screens, setScreens] = useState<TemplateItem[]>([]);
   const [components, setComponents] = useState<TemplateItem[]>([]);
+  const [pageLayouts, setPageLayouts] = useState<TemplateItem[]>([]);
+  const [formPatterns, setFormPatterns] = useState<TemplateItem[]>([]);
+  const [dataDisplay, setDataDisplay] = useState<TemplateItem[]>([]);
+  const [navigationPatterns, setNavigationPatterns] = useState<TemplateItem[]>([]);
   const [tplLoading, setTplLoading] = useState(false);
   const [tplError, setTplError] = useState<string | null>(null);
 
