@@ -77,6 +77,12 @@ export function VariantCard({
     toast({ title: "HTML code copied!" });
   };
 
+  const copyAsReact = async () => {
+    const code = htmlCssToReactComponent(variant.name, variant.html, variant.css);
+    await navigator.clipboard.writeText(code);
+    toast({ title: "React component copied!" });
+  };
+
   const downloadSvg = () => {
     if (!variant.svg) return;
     const blob = new Blob([variant.svg], { type: "image/svg+xml" });
