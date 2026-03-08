@@ -39,6 +39,7 @@ interface GenerationResult {
 const Generator = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
