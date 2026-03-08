@@ -14,7 +14,222 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      design_systems: {
+        Row: {
+          colors: Json | null
+          components: Json | null
+          created_at: string
+          id: string
+          name: string
+          project_id: string | null
+          spacing: Json | null
+          typography: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          colors?: Json | null
+          components?: Json | null
+          created_at?: string
+          id?: string
+          name: string
+          project_id?: string | null
+          spacing?: Json | null
+          typography?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          colors?: Json | null
+          components?: Json | null
+          created_at?: string
+          id?: string
+          name?: string
+          project_id?: string | null
+          spacing?: Json | null
+          typography?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_systems_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      designs: {
+        Row: {
+          created_at: string
+          css_code: string | null
+          html_code: string | null
+          id: string
+          image_url: string | null
+          project_id: string | null
+          prompt: string
+          svg_code: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          css_code?: string | null
+          html_code?: string | null
+          id?: string
+          image_url?: string | null
+          project_id?: string | null
+          prompt: string
+          svg_code?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          css_code?: string | null
+          html_code?: string | null
+          id?: string
+          image_url?: string | null
+          project_id?: string | null
+          prompt?: string
+          svg_code?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "designs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_templates: {
+        Row: {
+          created_at: string
+          id: string
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_templates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      templates: {
+        Row: {
+          category: string
+          created_at: string
+          css_code: string
+          description: string | null
+          html_code: string
+          id: string
+          is_premium: boolean | null
+          name: string
+          tags: string[] | null
+          thumbnail_url: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          css_code: string
+          description?: string | null
+          html_code: string
+          id?: string
+          is_premium?: boolean | null
+          name: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          css_code?: string
+          description?: string | null
+          html_code?: string
+          id?: string
+          is_premium?: boolean | null
+          name?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
