@@ -156,12 +156,14 @@ IMPORTANT RULES:
       const name = args[`variant_${i}_name`];
       const html = args[`variant_${i}_html`];
       const css = args[`variant_${i}_css`];
+      const svg = args[`variant_${i}_svg`] || "";
       if (html && css) {
         variants.push({
           id: crypto.randomUUID(),
           name: name || `Variant ${i}`,
           html,
           css,
+          svg,
         });
       }
     }
