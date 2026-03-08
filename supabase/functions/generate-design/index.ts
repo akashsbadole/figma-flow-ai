@@ -84,7 +84,8 @@ IMPORTANT RULES:
       variantProperties[`variant_${i}_name`] = { type: "string", description: `Name for variant ${i} (e.g. 'Clean Minimal', 'Bold Gradient')` };
       variantProperties[`variant_${i}_html`] = { type: "string", description: `Complete HTML markup for variant ${i}. Root container must be ${device.width}x${device.height}px.` };
       variantProperties[`variant_${i}_css`] = { type: "string", description: `CSS styles for variant ${i}. Use modern CSS with gradients, shadows, good typography.` };
-      requiredFields.push(`variant_${i}_name`, `variant_${i}_html`, `variant_${i}_css`);
+      variantProperties[`variant_${i}_svg`] = { type: "string", description: `Native SVG version of variant ${i} for Figma. Must use only native SVG elements (rect, text, circle, path, g, linearGradient, etc). NO foreignObject. Include viewBox="0 0 ${device.width} ${device.height}". Must visually match the HTML version.` };
+      requiredFields.push(`variant_${i}_name`, `variant_${i}_html`, `variant_${i}_css`, `variant_${i}_svg`);
     }
 
     const codeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
