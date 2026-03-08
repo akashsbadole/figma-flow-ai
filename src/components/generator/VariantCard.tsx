@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import html2canvas from "html2canvas";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Copy, Code, Maximize2 } from "lucide-react";
@@ -45,36 +46,46 @@ export function VariantCard({
   const containerHeight = deviceHeight * scale;
 
   const copyToFigma = async () => {
-    // Generate SVG with foreignObject for Figma-compatible clipboard
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${deviceWidth}" height="${deviceHeight}">
-  <foreignObject width="100%" height="100%">
-    <div xmlns="http://www.w3.org/1999/xhtml">
-      <style>${variant.css}</style>
-      ${variant.html}
-    </div>
-  </foreignObject>
-</svg>`;
-
     try {
-      // Copy as both HTML and text for maximum Figma compatibility
-      const htmlBlob = new Blob([`<style>${variant.css}</style>${variant.html}`], { type: "text/html" });
-      const textBlob = new Blob([svgContent], { type: "text/plain" });
+      // Create an offscreen container to render the design at full size
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.top = "0";
+      container.style.width = `${deviceWidth}px`;
+      container.style.height = `${deviceHeight}px`;
+      container.style.overflow = "hidden";
+      container.style.background = "white";
+      container.innerHTML = `<style>*{margin:0;padding:0;box-sizing:border-box;}${variant.css}</style>${variant.html}`;
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        width: deviceWidth,
+        height: deviceHeight,
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      document.body.removeChild(container);
+
+      // Convert canvas to blob and copy as image
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create image"))), "image/png");
+      });
 
       await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": htmlBlob,
-          "text/plain": textBlob,
-        }),
+        new ClipboardItem({ "image/png": blob }),
       ]);
 
       setCopied(true);
-      toast({ title: "Copied to clipboard!", description: "Paste into Figma or any design tool" });
+      toast({ title: "Design copied as image!", description: "Paste into Figma or any design tool" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback: copy HTML as text
+      // Fallback: copy HTML code
       await navigator.clipboard.writeText(`<style>${variant.css}</style>\n${variant.html}`);
       setCopied(true);
-      toast({ title: "Copied as HTML", description: "Paste the code into your project" });
+      toast({ title: "Copied as HTML code", description: "Image copy not supported — HTML copied instead" });
       setTimeout(() => setCopied(false), 2000);
     }
   };
