@@ -70,6 +70,65 @@ const Dashboard = () => {
           <p className="text-muted-foreground">What would you like to create today?</p>
         </motion.div>
 
+        {/* Usage Stats */}
+        {subscription && (
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="border-border/50">
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Crown className="h-3.5 w-3.5" /> Plan
+                  </CardDescription>
+                  <CardTitle className="text-2xl capitalize">{subscription.plan}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${subscription.status === "active" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {subscription.status}
+                  </span>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50">
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5" /> Generations
+                  </CardDescription>
+                  <CardTitle className="text-2xl">
+                    {subscription.generations_used}
+                    <span className="text-base font-normal text-muted-foreground">
+                      {subscription.plan === "free" ? ` / ${subscription.generations_limit}` : " used"}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {subscription.plan === "free" ? (
+                    <div className="space-y-1.5">
+                      <Progress value={(subscription.generations_used / subscription.generations_limit) * 100} className="h-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {Math.max(0, subscription.generations_limit - subscription.generations_used)} remaining
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Unlimited generations</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/50">
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5" /> Total Activity
+                  </CardDescription>
+                  <CardTitle className="text-2xl">{historyCount}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">{projects.length} project{projects.length !== 1 ? "s" : ""} · {recentDesigns.length} design{recentDesigns.length !== 1 ? "s" : ""}</p>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        )}
+
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-3">
           {tools.map((tool, i) => (
