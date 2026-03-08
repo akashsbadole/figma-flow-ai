@@ -330,6 +330,15 @@ const AdminPanel = () => {
                           >
                             {u.subscription?.plan === "pro" ? "→ Free" : "→ Pro"}
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`text-xs h-7 ${u.isAdmin ? "text-yellow-600" : ""}`}
+                            onClick={() => toggleAdminRole(u.user_id, !!u.isAdmin)}
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            {u.isAdmin ? "Remove Admin" : "Make Admin"}
+                          </Button>
                         </div>
                       </td>
                     </tr>
