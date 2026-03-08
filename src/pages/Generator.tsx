@@ -109,6 +109,13 @@ const Generator = () => {
             html_code: data.variants[0].html,
             css_code: data.variants[0].css,
           });
+          // Save to history
+          await supabase.from("generation_history").insert({
+            user_id: user.id,
+            type: "variant",
+            prompt,
+            result: { html: data.variants[0].html, css: data.variants[0].css, variantCount: data.variants.length },
+          });
         }
       } else {
         throw designRes.reason;
