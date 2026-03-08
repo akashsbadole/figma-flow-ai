@@ -130,8 +130,13 @@ const Generator = () => {
       if (tplRes.status === "fulfilled") {
         const { data, error } = tplRes.value;
         if (!error && !data?.error) {
-          setScreens(data?.screens || []);
+          setScreens(data?.screens || data?.pageLayouts || []);
           setComponents(data?.components || []);
+          setPageLayouts(data?.pageLayouts || []);
+          setFormPatterns(data?.formPatterns || []);
+          setDataDisplay(data?.dataDisplay || []);
+          setNavigationPatterns(data?.navigationPatterns || []);
+        }
         } else {
           setTplError(error?.message || data?.error || "Failed to generate templates");
         }
