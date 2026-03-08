@@ -815,7 +815,7 @@ const DesignSystemBuilder = () => {
                           <span className="text-sm">{c.label}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm font-medium">{c.value}</span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">WCAG AA</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground">WCAG AA</span>
                           </div>
                         </div>
                       ))}
