@@ -26,13 +26,17 @@ interface UserSubscription {
   generations_limit: number;
 }
 
+type UserFilter = "all" | "admin" | "pro" | "free";
+
 const AdminPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState<(UserProfile & { subscription?: UserSubscription })[]>([]);
+  const [users, setUsers] = useState<(UserProfile & { subscription?: UserSubscription; isAdmin?: boolean })[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<UserFilter>("all");
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     checkAdmin();
@@ -73,10 +77,19 @@ const AdminPanel = () => {
       .from("user_subscriptions")
       .select("*");
 
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("*")
+      .eq("role", "admin");
+
+    const adminSet = new Set((roles as any[] || []).map((r: any) => r.user_id));
+    setAdminIds(adminSet);
+
     const subsMap = new Map((subs as any[] || []).map((s: any) => [s.user_id, s]));
     const enriched = (profiles as any[] || []).map((p: any) => ({
       ...p,
       subscription: subsMap.get(p.user_id),
+      isAdmin: adminSet.has(p.user_id),
     }));
 
     setUsers(enriched);
@@ -118,12 +131,46 @@ const AdminPanel = () => {
     }
   };
 
-  const filtered = users.filter(
-    (u) =>
+  const toggleAdminRole = async (userId: string, currentlyAdmin: boolean) => {
+    if (currentlyAdmin) {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "admin");
+      if (error) {
+        toast({ title: "Failed to remove admin", variant: "destructive" });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "admin" } as any);
+      if (error) {
+        toast({ title: "Failed to grant admin", variant: "destructive" });
+        return;
+      }
+    }
+    setAdminIds((prev) => {
+      const next = new Set(prev);
+      currentlyAdmin ? next.delete(userId) : next.add(userId);
+      return next;
+    });
+    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, isAdmin: !currentlyAdmin } : u));
+    toast({ title: currentlyAdmin ? "Admin role removed" : "Admin role granted" });
+  };
+
+  const filtered = users.filter((u) => {
+    const matchesSearch =
       !searchQuery ||
       u.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.user_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      u.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filter === "admin") return u.isAdmin;
+    if (filter === "pro") return u.subscription?.plan === "pro";
+    if (filter === "free") return !u.subscription || u.subscription.plan === "free";
+    return true;
+  });
 
   if (!isAdmin && !loading) {
     return (
@@ -182,15 +229,30 @@ const AdminPanel = () => {
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Filter tabs + Search */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-1 p-1 rounded-lg bg-muted/50">
+            {(["all", "admin", "pro", "free"] as UserFilter[]).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                className="text-xs h-7 capitalize"
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? "All" : f === "admin" ? "Admins" : f === "pro" ? "Pro Users" : "Free Users"}
+              </Button>
+            ))}
+          </div>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         {/* Users Table */}
@@ -205,7 +267,8 @@ const AdminPanel = () => {
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/30">
                     <th className="text-left p-3 font-medium">User</th>
-                    <th className="text-left p-3 font-medium">Plan</th>
+                     <th className="text-left p-3 font-medium">Role</th>
+                     <th className="text-left p-3 font-medium">Plan</th>
                     <th className="text-left p-3 font-medium">Usage</th>
                     <th className="text-left p-3 font-medium">Status</th>
                     <th className="text-left p-3 font-medium">Joined</th>
@@ -225,6 +288,11 @@ const AdminPanel = () => {
                             <p className="text-[10px] text-muted-foreground font-mono">{u.user_id.slice(0, 8)}...</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant={u.isAdmin ? "default" : "outline"} className={`text-xs ${u.isAdmin ? "bg-yellow-500/20 text-yellow-600 border-yellow-500/30" : ""}`}>
+                          {u.isAdmin ? "Admin" : "User"}
+                        </Badge>
                       </td>
                       <td className="p-3">
                         <Badge variant={u.subscription?.plan === "pro" ? "default" : "secondary"} className="text-xs">
@@ -261,6 +329,15 @@ const AdminPanel = () => {
                             onClick={() => updatePlan(u.user_id, u.subscription?.plan === "pro" ? "free" : "pro")}
                           >
                             {u.subscription?.plan === "pro" ? "→ Free" : "→ Pro"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`text-xs h-7 ${u.isAdmin ? "text-yellow-600" : ""}`}
+                            onClick={() => toggleAdminRole(u.user_id, !!u.isAdmin)}
+                          >
+                            <Shield className="h-3 w-3 mr-1" />
+                            {u.isAdmin ? "Remove Admin" : "Make Admin"}
                           </Button>
                         </div>
                       </td>
