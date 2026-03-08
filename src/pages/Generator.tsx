@@ -11,6 +11,7 @@ import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
 import { DesignSystemPreview } from "@/components/generator/DesignSystemPreview";
 import { TemplatesPreview } from "@/components/generator/TemplatesPreview";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 interface Variant {
   id: string;
