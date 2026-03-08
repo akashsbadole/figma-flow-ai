@@ -33,33 +33,50 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert UI designer. Generate template designs based on the user's prompt.
+            content: `You are an expert UI designer. Generate a comprehensive template collection based on the user's prompt.
 
-Generate TWO categories of templates:
+Generate FIVE categories of templates:
 
-1. SCREEN TEMPLATES (3 screens): Full page layouts like Login, Dashboard, Settings, Profile, etc. that match the design brief.
-2. COMPONENT TEMPLATES (4 components): Reusable UI components like Navbar, Card, Form, Modal, Table, Footer, Sidebar, etc.
+1. PAGE LAYOUTS (4 templates): Full page designs — Landing/Hero, Dashboard, Settings/Profile, Detail/Content page. Each must fill ${device.width}x${device.height}px.
 
-Each template must have its own HTML and CSS. The CSS should use modern design: gradients, shadows, rounded corners, good typography.
+2. FORM PATTERNS (3 templates): Login/Signup form, Contact/Feedback form, Multi-step wizard form. Show complete, styled, realistic forms with labels, inputs, buttons, and validation states.
 
-Viewport: ${device.width}x${device.height}px (${device.label})
+3. DATA DISPLAY (3 templates): Data table with sorting headers, Card grid/list view, Detail/Stats view with charts or metrics.
+
+4. NAVIGATION PATTERNS (3 templates): Top navbar with dropdowns, Sidebar navigation, Bottom tab bar (mobile) or breadcrumb bar (desktop).
+
+5. REUSABLE COMPONENTS (4 templates): Modal/Dialog, Toast/Notification, Empty state, Loading skeleton.
+
+Each template must have its own HTML and CSS. Viewport: ${device.width}x${device.height}px (${device.label})
 
 Return ONLY valid JSON:
 {
-  "screens": [
-    { "name": "Screen Name", "category": "screen type", "html": "<html>", "css": "<css>" }
+  "pageLayouts": [
+    { "name": "Template Name", "category": "landing|dashboard|settings|detail", "html": "<html>", "css": "<css>" }
+  ],
+  "formPatterns": [
+    { "name": "Form Name", "category": "auth|contact|wizard", "html": "<html>", "css": "<css>" }
+  ],
+  "dataDisplay": [
+    { "name": "Display Name", "category": "table|cards|stats", "html": "<html>", "css": "<css>" }
+  ],
+  "navigationPatterns": [
+    { "name": "Nav Name", "category": "topnav|sidebar|bottomtab", "html": "<html>", "css": "<css>" }
   ],
   "components": [
-    { "name": "Component Name", "category": "component type", "html": "<html>", "css": "<css>" }
+    { "name": "Component Name", "category": "modal|toast|empty|skeleton", "html": "<html>", "css": "<css>" }
   ]
 }
 
 RULES:
-- Screen HTML should be a complete self-contained page filling ${device.width}x${device.height}px
-- Component HTML should show the component centered on a ${device.width}x400px container
-- Use consistent colors, fonts, and spacing across all templates
+- Page layouts should be complete self-contained pages filling ${device.width}x${device.height}px
+- Form patterns should be centered on a ${device.width}x${device.height}px container
+- Data display should fill ${device.width}x${device.height}px
+- Navigation patterns: show the nav element on a ${device.width}x400px container
+- Components: show centered on a ${device.width}x400px container
+- Use consistent colors, fonts, and spacing across ALL templates
 - Make them visually polished and production-ready
-- Add realistic placeholder content
+- Add realistic placeholder content (names, dates, stats, etc.)
 - Do not include markdown, explanation, or code fences. Just the JSON.`,
           },
           { role: "user", content: prompt },
@@ -94,24 +111,36 @@ RULES:
       throw new Error("Failed to parse AI response");
     }
 
-    const screens = (parsed.screens || []).map((s: any, i: number) => ({
-      id: crypto.randomUUID(),
-      name: s.name || `Screen ${i + 1}`,
-      category: s.category || "screen",
-      html: s.html || "",
-      css: s.css || "",
-    }));
+    const addIds = (items: any[], fallbackCategory: string) =>
+      (items || []).map((s: any, i: number) => ({
+        id: crypto.randomUUID(),
+        name: s.name || `Item ${i + 1}`,
+        category: s.category || fallbackCategory,
+        html: s.html || "",
+        css: s.css || "",
+      }));
 
-    const components = (parsed.components || []).map((c: any, i: number) => ({
-      id: crypto.randomUUID(),
-      name: c.name || `Component ${i + 1}`,
-      category: c.category || "component",
-      html: c.html || "",
-      css: c.css || "",
-    }));
+    // Support both old format (screens/components) and new format
+    const pageLayouts = addIds(parsed.pageLayouts || parsed.screens || [], "page");
+    const formPatterns = addIds(parsed.formPatterns || [], "form");
+    const dataDisplay = addIds(parsed.dataDisplay || [], "data");
+    const navigationPatterns = addIds(parsed.navigationPatterns || [], "nav");
+    const components = addIds(parsed.components || [], "component");
 
     return new Response(
-      JSON.stringify({ screens, components, deviceType, deviceWidth: device.width, deviceHeight: device.height }),
+      JSON.stringify({
+        // New expanded format
+        pageLayouts,
+        formPatterns,
+        dataDisplay,
+        navigationPatterns,
+        components,
+        // Legacy compatibility
+        screens: pageLayouts,
+        deviceType,
+        deviceWidth: device.width,
+        deviceHeight: device.height,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
