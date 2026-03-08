@@ -132,10 +132,31 @@ IMPORTANT RULES:
 
     let parsed;
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      parsed = JSON.parse(jsonMatch[1].trim());
-    } catch {
-      parsed = { variants: [{ name: "Design", html: content, css: "" }] };
+      // Clean markdown fences
+      let cleaned = content
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+
+      // Find JSON boundaries
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Fix trailing commas and control chars
+        cleaned = cleaned
+          .replace(/,\s*}/g, "}")
+          .replace(/,\s*]/g, "]")
+          .replace(/[\x00-\x1F\x7F]/g, " ");
+        parsed = JSON.parse(cleaned);
+      }
+    } catch (parseErr) {
+      console.error("Parse error. Content preview:", content.substring(0, 500));
+      throw new Error("Failed to parse AI response");
     }
 
     const variants = (parsed.variants || []).map((v: any, i: number) => ({
