@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
@@ -160,6 +160,17 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const downloadSvg = () => {
+    if (!variant.svg) return;
+    const blob = new Blob([variant.svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
@@ -250,6 +261,9 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               </Button>
               <Button variant="outline" size="sm" onClick={downloadCss}>
                 <Code className="h-4 w-4 mr-1" /> CSS
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadSvg} disabled={!variant.svg}>
+                <FileDown className="h-4 w-4 mr-1" /> SVG
               </Button>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />

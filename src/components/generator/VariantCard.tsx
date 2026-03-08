@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, Code, Maximize2 } from "lucide-react";
+import { Check, Copy, Code, Maximize2, FileDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +74,17 @@ export function VariantCard({
     const fullCode = `<!DOCTYPE html>\n<html>\n<head>\n<style>\n${variant.css}\n</style>\n</head>\n<body>\n${variant.html}\n</body>\n</html>`;
     await navigator.clipboard.writeText(fullCode);
     toast({ title: "HTML code copied!" });
+  };
+
+  const downloadSvg = () => {
+    if (!variant.svg) return;
+    const blob = new Blob([variant.svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -166,6 +177,17 @@ export function VariantCard({
           >
             <Code className="h-3.5 w-3.5" />
           </Button>
+          {variant.svg && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => { e.stopPropagation(); downloadSvg(); }}
+              title="Download SVG"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
