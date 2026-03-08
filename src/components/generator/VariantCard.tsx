@@ -76,6 +76,17 @@ export function VariantCard({
     toast({ title: "HTML code copied!" });
   };
 
+  const downloadSvg = () => {
+    if (!variant.svg) return;
+    const blob = new Blob([variant.svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card
       className={cn(
