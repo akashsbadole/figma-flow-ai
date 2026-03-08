@@ -237,6 +237,9 @@ const Templates = () => {
               </Tabs>
             )}
             <div className="flex gap-2 justify-end mt-4">
+              <Button variant="outline" onClick={() => previewTemplate && copyToFigma(previewTemplate)}>
+                <Copy className="h-4 w-4 mr-1" /> Copy for Figma
+              </Button>
               <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "html")}>
                 <Download className="h-4 w-4 mr-1" /> Download HTML
               </Button>
