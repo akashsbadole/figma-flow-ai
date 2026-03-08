@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Code, Download, Check, Loader2, LayoutTemplate } from "lucide-react";
+import { Copy, Code, Download, Check, Loader2, LayoutTemplate, FileText, Database, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TemplateItem {
@@ -16,6 +16,10 @@ interface TemplateItem {
 interface TemplatesPreviewProps {
   screens: TemplateItem[];
   components: TemplateItem[];
+  pageLayouts?: TemplateItem[];
+  formPatterns?: TemplateItem[];
+  dataDisplay?: TemplateItem[];
+  navigationPatterns?: TemplateItem[];
   deviceWidth: number;
   deviceHeight: number;
   loading: boolean;
@@ -85,7 +89,18 @@ function TemplateCard({ item, width, height, isScreen }: { item: TemplateItem; w
   );
 }
 
-export function TemplatesPreview({ screens, components, deviceWidth, deviceHeight, loading, error }: TemplatesPreviewProps) {
+function TemplateGrid({ items, width, height, isScreen }: { items: TemplateItem[]; width: number; height: number; isScreen: boolean }) {
+  if (items.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">No templates generated</p>;
+  return (
+    <div className={`grid grid-cols-1 ${isScreen ? "md:grid-cols-2 lg:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"} gap-4`}>
+      {items.map((item) => (
+        <TemplateCard key={item.id} item={item} width={width} height={isScreen ? height : 400} isScreen={isScreen} />
+      ))}
+    </div>
+  );
+}
+
+export function TemplatesPreview({ screens, components, pageLayouts, formPatterns, dataDisplay, navigationPatterns, deviceWidth, deviceHeight, loading, error }: TemplatesPreviewProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -103,7 +118,16 @@ export function TemplatesPreview({ screens, components, deviceWidth, deviceHeigh
     );
   }
 
-  if (screens.length === 0 && components.length === 0) {
+  // Use new categories if available, fall back to legacy
+  const layouts = pageLayouts?.length ? pageLayouts : screens;
+  const forms = formPatterns || [];
+  const dataItems = dataDisplay || [];
+  const navItems = navigationPatterns || [];
+  const comps = components || [];
+
+  const totalCount = layouts.length + forms.length + dataItems.length + navItems.length + comps.length;
+
+  if (totalCount === 0) {
     return (
       <div className="text-center py-8">
         <LayoutTemplate className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
@@ -112,26 +136,32 @@ export function TemplatesPreview({ screens, components, deviceWidth, deviceHeigh
     );
   }
 
+  // Determine which tabs have content
+  const tabs = [
+    { value: "layouts", label: "Page Layouts", icon: LayoutTemplate, items: layouts, isScreen: true, count: layouts.length },
+    { value: "forms", label: "Forms", icon: FileText, items: forms, isScreen: true, count: forms.length },
+    { value: "data", label: "Data Display", icon: Database, items: dataItems, isScreen: true, count: dataItems.length },
+    { value: "navigation", label: "Navigation", icon: Navigation, items: navItems, isScreen: false, count: navItems.length },
+    { value: "components", label: "Components", icon: Code, items: comps, isScreen: false, count: comps.length },
+  ].filter(t => t.count > 0);
+
+  const defaultTab = tabs[0]?.value || "layouts";
+
   return (
-    <Tabs defaultValue="screens" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="screens">Screens ({screens.length})</TabsTrigger>
-        <TabsTrigger value="components">Components ({components.length})</TabsTrigger>
+    <Tabs defaultValue={defaultTab} className="space-y-4">
+      <TabsList className="flex-wrap h-auto gap-1">
+        {tabs.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label} ({tab.count})
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="screens">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {screens.map((s) => (
-            <TemplateCard key={s.id} item={s} width={deviceWidth} height={deviceHeight} isScreen />
-          ))}
-        </div>
-      </TabsContent>
-      <TabsContent value="components">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {components.map((c) => (
-            <TemplateCard key={c.id} item={c} width={deviceWidth} height={400} isScreen={false} />
-          ))}
-        </div>
-      </TabsContent>
+      {tabs.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value}>
+          <TemplateGrid items={tab.items} width={deviceWidth} height={deviceHeight} isScreen={tab.isScreen} />
+        </TabsContent>
+      ))}
     </Tabs>
   );
 }

@@ -52,6 +52,10 @@ const Generator = () => {
   // Templates state
   const [screens, setScreens] = useState<TemplateItem[]>([]);
   const [components, setComponents] = useState<TemplateItem[]>([]);
+  const [pageLayouts, setPageLayouts] = useState<TemplateItem[]>([]);
+  const [formPatterns, setFormPatterns] = useState<TemplateItem[]>([]);
+  const [dataDisplay, setDataDisplay] = useState<TemplateItem[]>([]);
+  const [navigationPatterns, setNavigationPatterns] = useState<TemplateItem[]>([]);
   const [tplLoading, setTplLoading] = useState(false);
   const [tplError, setTplError] = useState<string | null>(null);
 
@@ -65,6 +69,10 @@ const Generator = () => {
     setDsError(null);
     setScreens([]);
     setComponents([]);
+    setPageLayouts([]);
+    setFormPatterns([]);
+    setDataDisplay([]);
+    setNavigationPatterns([]);
     setTplError(null);
 
     try {
@@ -122,8 +130,12 @@ const Generator = () => {
       if (tplRes.status === "fulfilled") {
         const { data, error } = tplRes.value;
         if (!error && !data?.error) {
-          setScreens(data?.screens || []);
+          setScreens(data?.screens || data?.pageLayouts || []);
           setComponents(data?.components || []);
+          setPageLayouts(data?.pageLayouts || []);
+          setFormPatterns(data?.formPatterns || []);
+          setDataDisplay(data?.dataDisplay || []);
+          setNavigationPatterns(data?.navigationPatterns || []);
         } else {
           setTplError(error?.message || data?.error || "Failed to generate templates");
         }
@@ -261,6 +273,10 @@ const Generator = () => {
                   <TemplatesPreview
                     screens={screens}
                     components={components}
+                    pageLayouts={pageLayouts}
+                    formPatterns={formPatterns}
+                    dataDisplay={dataDisplay}
+                    navigationPatterns={navigationPatterns}
                     deviceWidth={result?.deviceWidth || 390}
                     deviceHeight={result?.deviceHeight || 844}
                     loading={tplLoading}

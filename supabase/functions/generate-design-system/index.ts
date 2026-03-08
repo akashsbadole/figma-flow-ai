@@ -35,13 +35,26 @@ serve(async (req) => {
             type: "function",
             function: {
               name: "create_design_system",
-              description: "Create a comprehensive design system with all tokens needed for Figma and development.",
+              description: "Create a comprehensive design system with all tokens needed for Figma and development, including dark mode, icon system, motion tokens, and extended component variants.",
               parameters: {
                 type: "object",
                 properties: {
                   name: { type: "string", description: "Name for this design system" },
                   colors: {
                     type: "object",
+                    properties: {
+                      primary: { type: "string" }, primaryLight: { type: "string" }, primaryDark: { type: "string" },
+                      secondary: { type: "string" }, secondaryLight: { type: "string" }, accent: { type: "string" },
+                      background: { type: "string" }, surface: { type: "string" }, foreground: { type: "string" },
+                      muted: { type: "string" }, success: { type: "string" }, warning: { type: "string" },
+                      error: { type: "string" }, info: { type: "string" },
+                    },
+                    required: ["primary", "primaryLight", "primaryDark", "secondary", "secondaryLight", "accent", "background", "surface", "foreground", "muted", "success", "warning", "error", "info"],
+                    additionalProperties: false,
+                  },
+                  darkModeColors: {
+                    type: "object",
+                    description: "Dark mode color palette — inverted/adjusted for dark backgrounds",
                     properties: {
                       primary: { type: "string" }, primaryLight: { type: "string" }, primaryDark: { type: "string" },
                       secondary: { type: "string" }, secondaryLight: { type: "string" }, accent: { type: "string" },
@@ -71,6 +84,30 @@ serve(async (req) => {
                   zIndex: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "number" } }) },
                   transitions: { type: "array", items: tokenArrayItem({ name: { type: "string" }, duration: { type: "string" }, easing: { type: "string" } }) },
                   borders: { type: "array", items: tokenArrayItem({ name: { type: "string" }, width: { type: "string" }, style: { type: "string" }, color: { type: "string" } }) },
+                  iconSystem: {
+                    type: "object",
+                    description: "Icon sizing, stroke, and grid specs",
+                    properties: {
+                      sizes: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                      strokeWidth: { type: "string", description: "Default stroke width e.g. 1.5px" },
+                      gridSize: { type: "string", description: "Icon grid e.g. 24px" },
+                      cornerRadius: { type: "string", description: "Corner radius for icon containers" },
+                      recommendedLibraries: { type: "array", items: { type: "string" } },
+                    },
+                    required: ["sizes", "strokeWidth", "gridSize", "cornerRadius", "recommendedLibraries"],
+                    additionalProperties: false,
+                  },
+                  motionTokens: {
+                    type: "object",
+                    description: "Animation and motion design tokens",
+                    properties: {
+                      easingCurves: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" }, description: { type: "string" } }) },
+                      durations: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" }, useCase: { type: "string" } }) },
+                      animations: { type: "array", items: tokenArrayItem({ name: { type: "string" }, keyframes: { type: "string" }, duration: { type: "string" }, easing: { type: "string" } }) },
+                    },
+                    required: ["easingCurves", "durations", "animations"],
+                    additionalProperties: false,
+                  },
                   components: {
                     type: "object",
                     properties: {
@@ -80,12 +117,23 @@ serve(async (req) => {
                       badgeHtml: { type: "string" }, badgeCss: { type: "string" },
                       alertHtml: { type: "string" }, alertCss: { type: "string" },
                       avatarHtml: { type: "string" }, avatarCss: { type: "string" },
+                      tabsHtml: { type: "string" }, tabsCss: { type: "string" },
+                      modalHtml: { type: "string" }, modalCss: { type: "string" },
+                      tooltipHtml: { type: "string" }, tooltipCss: { type: "string" },
+                      navbarHtml: { type: "string" }, navbarCss: { type: "string" },
+                      toggleHtml: { type: "string" }, toggleCss: { type: "string" },
+                      dropdownHtml: { type: "string" }, dropdownCss: { type: "string" },
                     },
-                    required: ["buttonHtml", "buttonCss", "cardHtml", "cardCss", "inputHtml", "inputCss", "badgeHtml", "badgeCss", "alertHtml", "alertCss", "avatarHtml", "avatarCss"],
+                    required: [
+                      "buttonHtml", "buttonCss", "cardHtml", "cardCss", "inputHtml", "inputCss",
+                      "badgeHtml", "badgeCss", "alertHtml", "alertCss", "avatarHtml", "avatarCss",
+                      "tabsHtml", "tabsCss", "modalHtml", "modalCss", "tooltipHtml", "tooltipCss",
+                      "navbarHtml", "navbarCss", "toggleHtml", "toggleCss", "dropdownHtml", "dropdownCss",
+                    ],
                     additionalProperties: false,
                   },
                 },
-                required: ["name", "colors", "typography", "spacing", "borderRadius", "shadows", "gradients", "breakpoints", "opacity", "zIndex", "transitions", "borders", "components"],
+                required: ["name", "colors", "darkModeColors", "typography", "spacing", "borderRadius", "shadows", "gradients", "breakpoints", "opacity", "zIndex", "transitions", "borders", "iconSystem", "motionTokens", "components"],
                 additionalProperties: false,
               },
             },
@@ -110,9 +158,28 @@ Rules:
 - Include z-index layers (base, dropdown, sticky, modal, popover, toast)
 - Include transition presets (fast, normal, slow) with easing curves
 - Include border definitions (thin, medium, thick)
-- Component HTML/CSS should use CSS custom properties referencing the tokens
+
+DARK MODE:
+- Generate a complete dark mode color palette alongside light mode
+- Dark backgrounds should be deep neutrals (not pure black)
+- Ensure primary colors are adjusted for dark backgrounds (slightly brighter/lighter)
+- Muted colors should be dark grays, foreground should be light
+
+ICON SYSTEM:
+- Define icon sizes (xs: 12px, sm: 16px, md: 20px, lg: 24px, xl: 32px, 2xl: 48px)
+- Specify stroke width, grid size, corner radius
+- Recommend 2-3 icon libraries that fit the brand style
+
+MOTION / ANIMATION:
+- Define 3-5 easing curves with descriptions (ease-in, ease-out, spring, bounce, etc.)
+- Define duration scale (instant: 100ms, fast: 200ms, normal: 300ms, slow: 500ms, glacial: 800ms)
+- Define 4-6 named animations with keyframe descriptions (fadeIn, slideUp, scaleIn, rotate, pulse, bounce)
+
+COMPONENT VARIANTS:
+- Generate 12 components total: button, card, input, badge, alert, avatar, tabs, modal, tooltip, navbar, toggle, dropdown
+- Each component HTML/CSS should use CSS custom properties referencing the tokens
 - Components should look polished and production-ready
-- Generate badge, alert, and avatar components in addition to button, card, and input`,
+- Show multiple states/variants per component where applicable`,
           },
           { role: "user", content: prompt },
         ],
