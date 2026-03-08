@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Palette, Sparkles, Download, Loader2, Copy, Check, Eye, Code } from "lucide-react";
+import { Palette, Sparkles, Download, Loader2, Copy, Check, Eye, Code, Layers, Grid3X3, Move, Zap } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   generateCSS,
@@ -32,6 +32,11 @@ export interface DesignSystemData {
   borderRadius: { name: string; value: string }[];
   shadows: { name: string; value: string }[];
   gradients: { name: string; value: string }[];
+  breakpoints: { name: string; value: string }[];
+  opacity: { name: string; value: number }[];
+  zIndex: { name: string; value: number }[];
+  transitions: { name: string; duration: string; easing: string }[];
+  borders: { name: string; width: string; style: string; color: string }[];
   components: {
     buttonHtml: string;
     buttonCss: string;
@@ -39,6 +44,12 @@ export interface DesignSystemData {
     cardCss: string;
     inputHtml: string;
     inputCss: string;
+    badgeHtml: string;
+    badgeCss: string;
+    alertHtml: string;
+    alertCss: string;
+    avatarHtml: string;
+    avatarCss: string;
   };
 }
 
@@ -61,18 +72,51 @@ const DesignSystemBuilder = () => {
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
-      setDesignSystem(data.designSystem);
+
+      // Fill defaults for new fields if AI didn't return them
+      const ds = data.designSystem;
+      ds.breakpoints = ds.breakpoints || [
+        { name: "sm", value: "640px" }, { name: "md", value: "768px" },
+        { name: "lg", value: "1024px" }, { name: "xl", value: "1280px" }, { name: "2xl", value: "1536px" },
+      ];
+      ds.opacity = ds.opacity || [
+        { name: "0", value: 0 }, { name: "25", value: 0.25 }, { name: "50", value: 0.5 },
+        { name: "75", value: 0.75 }, { name: "100", value: 1 },
+      ];
+      ds.zIndex = ds.zIndex || [
+        { name: "base", value: 0 }, { name: "dropdown", value: 10 }, { name: "sticky", value: 20 },
+        { name: "modal", value: 30 }, { name: "popover", value: 40 }, { name: "toast", value: 50 },
+      ];
+      ds.transitions = ds.transitions || [
+        { name: "fast", duration: "150ms", easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+        { name: "normal", duration: "250ms", easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+        { name: "slow", duration: "500ms", easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+      ];
+      ds.borders = ds.borders || [
+        { name: "thin", width: "1px", style: "solid", color: ds.colors.muted || "#e5e7eb" },
+        { name: "medium", width: "2px", style: "solid", color: ds.colors.muted || "#e5e7eb" },
+        { name: "thick", width: "3px", style: "solid", color: ds.colors.primary || "#3b82f6" },
+      ];
+      ds.components = ds.components || {};
+      ds.components.badgeHtml = ds.components.badgeHtml || '<span class="badge badge-primary">Primary</span> <span class="badge badge-success">Success</span> <span class="badge badge-warning">Warning</span>';
+      ds.components.badgeCss = ds.components.badgeCss || '.badge{display:inline-flex;padding:2px 10px;border-radius:9999px;font-size:12px;font-weight:600;} .badge-primary{background:var(--color-primary);color:#fff;} .badge-success{background:var(--color-success);color:#fff;} .badge-warning{background:var(--color-warning);color:#fff;}';
+      ds.components.alertHtml = ds.components.alertHtml || '<div class="alert alert-info">ℹ️ This is an informational alert.</div><div class="alert alert-error">⚠️ Something went wrong!</div>';
+      ds.components.alertCss = ds.components.alertCss || '.alert{padding:12px 16px;border-radius:8px;margin-bottom:8px;font-size:14px;} .alert-info{background:var(--color-info);color:#fff;} .alert-error{background:var(--color-error);color:#fff;}';
+      ds.components.avatarHtml = ds.components.avatarHtml || '<div class="avatar">JD</div><div class="avatar avatar-lg">AB</div>';
+      ds.components.avatarCss = ds.components.avatarCss || '.avatar{width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;margin-right:8px;} .avatar-lg{width:56px;height:56px;font-size:18px;}';
+
+      setDesignSystem(ds);
 
       await supabase.from("design_systems").insert({
         user_id: user.id,
-        name: data.designSystem.name || "Untitled System",
-        colors: data.designSystem.colors,
-        typography: data.designSystem.typography,
-        spacing: data.designSystem.spacing,
-        components: data.designSystem.components,
+        name: ds.name || "Untitled System",
+        colors: ds.colors,
+        typography: ds.typography,
+        spacing: ds.spacing,
+        components: ds.components,
       });
 
-      toast({ title: "Design system generated!", description: "Complete with Figma tokens and export options." });
+      toast({ title: "Design system generated!", description: "Complete with all tokens and export options." });
     } catch (error: any) {
       toast({ title: "Generation failed", description: error.message, variant: "destructive" });
     } finally {
@@ -99,11 +143,13 @@ const DesignSystemBuilder = () => {
 
   const downloadAll = () => {
     if (!designSystem) return;
-    downloadFile(generateCSS(designSystem), `${designSystem.name.toLowerCase().replace(/\s+/g, "-")}-tokens.css`);
-    downloadFile(generateFigmaTokens(designSystem), `${designSystem.name.toLowerCase().replace(/\s+/g, "-")}-figma-tokens.json`);
+    const slug = designSystem.name.toLowerCase().replace(/\s+/g, "-");
+    downloadFile(generateCSS(designSystem), `${slug}-tokens.css`);
+    downloadFile(generateFigmaTokens(designSystem), `${slug}-figma-tokens.json`);
     downloadFile(generateTailwindConfig(designSystem), `tailwind.config.ts`);
-    downloadFile(generateSCSS(designSystem), `${designSystem.name.toLowerCase().replace(/\s+/g, "-")}-tokens.scss`);
-    toast({ title: "All files downloaded!", description: "CSS, SCSS, Tailwind Config, and Figma Tokens" });
+    downloadFile(generateSCSS(designSystem), `${slug}-tokens.scss`);
+    downloadFile(generateStyleDictionary(designSystem), `${slug}-style-dictionary.json`);
+    toast({ title: "All files downloaded!" });
   };
 
   const colorGroups = designSystem
@@ -114,6 +160,17 @@ const DesignSystemBuilder = () => {
       }
     : {};
 
+  const allComponents = designSystem
+    ? [
+        { key: "button", label: "Button", html: designSystem.components.buttonHtml, css: designSystem.components.buttonCss },
+        { key: "card", label: "Card", html: designSystem.components.cardHtml, css: designSystem.components.cardCss },
+        { key: "input", label: "Input", html: designSystem.components.inputHtml, css: designSystem.components.inputCss },
+        { key: "badge", label: "Badge", html: designSystem.components.badgeHtml, css: designSystem.components.badgeCss },
+        { key: "alert", label: "Alert", html: designSystem.components.alertHtml, css: designSystem.components.alertCss },
+        { key: "avatar", label: "Avatar", html: designSystem.components.avatarHtml, css: designSystem.components.avatarCss },
+      ]
+    : [];
+
   return (
     <AppLayout>
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -123,7 +180,7 @@ const DesignSystemBuilder = () => {
             Design System Builder
           </h1>
           <p className="text-muted-foreground mt-1">
-            Generate a complete design system with Figma tokens, CSS, SCSS, and Tailwind export
+            Generate a complete design system with all tokens, components & multi-format export
           </p>
         </motion.div>
 
@@ -167,7 +224,7 @@ const DesignSystemBuilder = () => {
               <Sparkles className="h-8 w-8 text-primary-foreground" />
             </div>
             <p className="mt-4 text-muted-foreground">Generating your design system...</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Colors, typography, spacing, shadows, gradients & components</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Colors, typography, spacing, shadows, gradients, breakpoints, transitions & components</p>
           </div>
         )}
 
@@ -185,7 +242,7 @@ const DesignSystemBuilder = () => {
                 <div>
                   <h2 className="text-xl font-bold">{designSystem.name}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {Object.keys(designSystem.colors).length} colors · {designSystem.typography.scale.length} type sizes · {designSystem.spacing.length} spacing tokens
+                    {Object.keys(designSystem.colors).length} colors · {designSystem.typography.scale.length} type sizes · {designSystem.spacing.length} spacing · {designSystem.breakpoints?.length || 0} breakpoints · {designSystem.transitions?.length || 0} transitions
                   </p>
                 </div>
               </div>
@@ -193,29 +250,20 @@ const DesignSystemBuilder = () => {
               {/* Colors */}
               <Card className="shadow-card border-border/50">
                 <CardHeader>
-                  <CardTitle className="text-lg">Color Palette</CardTitle>
+                  <CardTitle className="text-lg">🎨 Color Palette</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {Object.entries(colorGroups).map(([group, keys]) => (
                     <div key={group}>
                       <p className="text-sm font-medium text-muted-foreground mb-3">{group}</p>
-                      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                      <div className="grid grid-cols-3 md:grid-cols-7 gap-3">
                         {keys.map((key) => {
                           const val = designSystem.colors[key];
                           if (!val) return null;
                           return (
-                            <button
-                              key={key}
-                              className="group/color space-y-1.5 text-left"
-                              onClick={() => copyText(val, key)}
-                            >
-                              <div
-                                className="h-16 rounded-lg border border-border/50 shadow-sm group-hover/color:ring-2 ring-primary transition-all"
-                                style={{ backgroundColor: val }}
-                              />
-                              <p className="text-xs font-medium capitalize">
-                                {key.replace(/([A-Z])/g, " $1")}
-                              </p>
+                            <button key={key} className="group/color space-y-1.5 text-left" onClick={() => copyText(val, key)}>
+                              <div className="h-16 rounded-lg border border-border/50 shadow-sm group-hover/color:ring-2 ring-primary transition-all" style={{ backgroundColor: val }} />
+                              <p className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, " $1")}</p>
                               <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
                                 {val}
                                 {copiedKey === key && <Check className="h-3 w-3 text-accent" />}
@@ -232,7 +280,7 @@ const DesignSystemBuilder = () => {
               {/* Typography */}
               <Card className="shadow-card border-border/50">
                 <CardHeader>
-                  <CardTitle className="text-lg">Typography</CardTitle>
+                  <CardTitle className="text-lg">🔤 Typography</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid md:grid-cols-3 gap-6">
@@ -254,7 +302,6 @@ const DesignSystemBuilder = () => {
                     </div>
                   </div>
 
-                  {/* Type scale */}
                   <div className="space-y-1 border-t border-border/50 pt-4">
                     <p className="text-sm font-medium text-muted-foreground mb-3">Type Scale</p>
                     {designSystem.typography.scale.map((s) => (
@@ -268,7 +315,6 @@ const DesignSystemBuilder = () => {
                     ))}
                   </div>
 
-                  {/* Weights */}
                   <div className="space-y-1 border-t border-border/50 pt-4">
                     <p className="text-sm font-medium text-muted-foreground mb-3">Font Weights</p>
                     <div className="flex flex-wrap gap-4">
@@ -284,11 +330,11 @@ const DesignSystemBuilder = () => {
                 </CardContent>
               </Card>
 
-              {/* Spacing & Radius */}
+              {/* Spacing & Radius & Effects */}
               <div className="grid md:grid-cols-2 gap-6">
                 <Card className="shadow-card border-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg">Spacing</CardTitle>
+                    <CardTitle className="text-lg">📏 Spacing</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -305,7 +351,7 @@ const DesignSystemBuilder = () => {
 
                 <Card className="shadow-card border-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg">Effects</CardTitle>
+                    <CardTitle className="text-lg">✨ Effects</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -313,10 +359,7 @@ const DesignSystemBuilder = () => {
                       <div className="flex flex-wrap gap-3">
                         {designSystem.borderRadius.map((r) => (
                           <div key={r.name} className="text-center">
-                            <div
-                              className="w-12 h-12 border-2 border-primary/30 bg-primary/10"
-                              style={{ borderRadius: r.value }}
-                            />
+                            <div className="w-12 h-12 border-2 border-primary/30 bg-primary/10" style={{ borderRadius: r.value }} />
                             <p className="text-[10px] text-muted-foreground mt-1">{r.name}</p>
                           </div>
                         ))}
@@ -327,10 +370,7 @@ const DesignSystemBuilder = () => {
                       <div className="flex flex-wrap gap-3">
                         {designSystem.shadows.map((s) => (
                           <div key={s.name} className="text-center">
-                            <div
-                              className="w-14 h-14 rounded-lg bg-card border border-border/50"
-                              style={{ boxShadow: s.value }}
-                            />
+                            <div className="w-14 h-14 rounded-lg bg-card border border-border/50" style={{ boxShadow: s.value }} />
                             <p className="text-[10px] text-muted-foreground mt-1">{s.name}</p>
                           </div>
                         ))}
@@ -341,14 +381,120 @@ const DesignSystemBuilder = () => {
                       <div className="grid grid-cols-3 gap-3">
                         {designSystem.gradients.map((g) => (
                           <div key={g.name}>
-                            <div
-                              className="h-10 rounded-lg"
-                              style={{ background: g.value }}
-                            />
+                            <div className="h-10 rounded-lg" style={{ background: g.value }} />
                             <p className="text-[10px] text-muted-foreground mt-1">{g.name}</p>
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Breakpoints, Opacity, Z-Index */}
+              <div className="grid md:grid-cols-3 gap-6">
+                <Card className="shadow-card border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Grid3X3 className="h-4 w-4" /> Breakpoints
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(designSystem.breakpoints || []).map((b) => (
+                        <div key={b.name} className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
+                          <span className="text-sm font-medium">{b.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{b.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-card border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Layers className="h-4 w-4" /> Opacity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(designSystem.opacity || []).map((o) => (
+                        <div key={o.name} className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground font-mono w-8">{o.name}</span>
+                          <div className="flex-1 h-6 rounded" style={{ backgroundColor: designSystem.colors.primary, opacity: o.value }} />
+                          <span className="text-xs text-muted-foreground font-mono w-10">{o.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-card border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Move className="h-4 w-4" /> Z-Index
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(designSystem.zIndex || []).map((z) => (
+                        <div key={z.name} className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
+                          <span className="text-sm font-medium capitalize">{z.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono">{z.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Transitions & Borders */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card className="shadow-card border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Zap className="h-4 w-4" /> Transitions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {(designSystem.transitions || []).map((t) => (
+                        <div key={t.name} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium capitalize">{t.name}</span>
+                            <span className="text-xs text-muted-foreground font-mono">{t.duration}</span>
+                          </div>
+                          <div className="group/trans relative h-8 bg-muted/50 rounded overflow-hidden cursor-pointer">
+                            <div
+                              className="absolute left-0 top-0 h-full w-8 rounded bg-primary group-hover/trans:w-full"
+                              style={{ transition: `width ${t.duration} ${t.easing}` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-mono">{t.easing}</p>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-muted-foreground italic">Hover to preview</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-card border-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg">🔲 Borders</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {(designSystem.borders || []).map((b) => (
+                        <div key={b.name} className="flex items-center gap-4">
+                          <span className="text-sm font-medium capitalize w-16">{b.name}</span>
+                          <div
+                            className="flex-1 h-0 rounded"
+                            style={{ borderTop: `${b.width} ${b.style} ${b.color}` }}
+                          />
+                          <span className="text-xs text-muted-foreground font-mono">{b.width}</span>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -363,16 +509,12 @@ const DesignSystemBuilder = () => {
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="button">
-                    <TabsList>
-                      <TabsTrigger value="button">Button</TabsTrigger>
-                      <TabsTrigger value="card">Card</TabsTrigger>
-                      <TabsTrigger value="input">Input</TabsTrigger>
+                    <TabsList className="flex-wrap h-auto gap-1">
+                      {allComponents.map((c) => (
+                        <TabsTrigger key={c.key} value={c.key}>{c.label}</TabsTrigger>
+                      ))}
                     </TabsList>
-                    {[
-                      { key: "button", html: designSystem.components.buttonHtml, css: designSystem.components.buttonCss },
-                      { key: "card", html: designSystem.components.cardHtml, css: designSystem.components.cardCss },
-                      { key: "input", html: designSystem.components.inputHtml, css: designSystem.components.inputCss },
-                    ].map((comp) => (
+                    {allComponents.map((comp) => (
                       <TabsContent key={comp.key} value={comp.key} className="mt-4 space-y-4">
                         <div className="rounded-lg border border-border bg-muted/30 p-6">
                           <iframe
@@ -387,12 +529,7 @@ const DesignSystemBuilder = () => {
                             <pre className="rounded-lg bg-muted p-3 overflow-auto text-xs font-mono max-h-[200px]">
                               <code>{comp.html}</code>
                             </pre>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="absolute top-6 right-1 h-7 w-7"
-                              onClick={() => copyText(comp.html, `${comp.key}-html`)}
-                            >
+                            <Button size="icon" variant="ghost" className="absolute top-6 right-1 h-7 w-7" onClick={() => copyText(comp.html, `${comp.key}-html`)}>
                               {copiedKey === `${comp.key}-html` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                             </Button>
                           </div>
@@ -401,12 +538,7 @@ const DesignSystemBuilder = () => {
                             <pre className="rounded-lg bg-muted p-3 overflow-auto text-xs font-mono max-h-[200px]">
                               <code>{comp.css}</code>
                             </pre>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="absolute top-6 right-1 h-7 w-7"
-                              onClick={() => copyText(comp.css, `${comp.key}-css`)}
-                            >
+                            <Button size="icon" variant="ghost" className="absolute top-6 right-1 h-7 w-7" onClick={() => copyText(comp.css, `${comp.key}-css`)}>
                               {copiedKey === `${comp.key}-css` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                             </Button>
                           </div>
@@ -452,20 +584,10 @@ const DesignSystemBuilder = () => {
                             <code>{fmt.gen()}</code>
                           </pre>
                           <div className="absolute top-2 right-2 flex gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 bg-card/80"
-                              onClick={() => copyText(fmt.gen(), fmt.key)}
-                            >
+                            <Button size="icon" variant="ghost" className="h-8 w-8 bg-card/80" onClick={() => copyText(fmt.gen(), fmt.key)}>
                               {copiedKey === fmt.key ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                             </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 bg-card/80"
-                              onClick={() => downloadFile(fmt.gen(), fmt.file)}
-                            >
+                            <Button size="icon" variant="ghost" className="h-8 w-8 bg-card/80" onClick={() => downloadFile(fmt.gen(), fmt.file)}>
                               <Download className="h-3 w-3" />
                             </Button>
                           </div>
@@ -486,8 +608,8 @@ const DesignSystemBuilder = () => {
               <Palette className="h-10 w-10 text-muted-foreground/40" />
             </div>
             <h3 className="text-lg font-medium text-muted-foreground">No design system yet</h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
-              Describe your brand above to generate colors, typography, spacing, components & Figma tokens
+            <p className="text-sm text-muted-foreground/70 mt-1 max-w-md">
+              Describe your brand above to generate colors, typography, spacing, shadows, gradients, breakpoints, transitions, borders, components & Figma tokens
             </p>
           </div>
         )}
