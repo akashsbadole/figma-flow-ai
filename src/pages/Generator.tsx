@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Wand2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { PromptInput } from "@/components/generator/PromptInput";
 import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
@@ -33,7 +33,7 @@ const Generator = () => {
   const [expandedVariant, setExpandedVariant] = useState<Variant | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState("");
 
-  const handleGenerate = async (prompt: string, deviceType: string) => {
+  const handleGenerate = async (prompt: string, deviceType: string, referenceImage?: string) => {
     if (!user) return;
     setGenerating(true);
     setResult(null);
@@ -42,7 +42,7 @@ const Generator = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-design", {
-        body: { prompt, deviceType, variantCount: 4 },
+        body: { prompt, deviceType, variantCount: 4, referenceImage },
       });
 
       if (error) throw error;
@@ -53,7 +53,7 @@ const Generator = () => {
         setSelectedVariant(data.variants[0].id);
       }
 
-      // Save first variant to designs table
+      // Save first variant
       if (data.variants?.length > 0) {
         const first = data.variants[0];
         await supabase.from("designs").insert({
@@ -72,10 +72,43 @@ const Generator = () => {
     }
   };
 
+  const handleIterate = async (followUp: string, currentHtml: string, currentCss: string): Promise<{ html: string; css: string } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-design", {
+        body: {
+          prompt: followUp,
+          deviceType: result?.deviceType || "mobile",
+          variantCount: 1,
+          iterateOn: { html: currentHtml, css: currentCss },
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const v = data.variants?.[0];
+      if (!v) throw new Error("No result returned");
+
+      // Save iterated design
+      if (user) {
+        await supabase.from("designs").insert({
+          user_id: user.id,
+          prompt: `${currentPrompt} → ${followUp}`,
+          html_code: v.html,
+          css_code: v.css,
+        });
+      }
+
+      return { html: v.html, css: v.css };
+    } catch (err: any) {
+      toast({ title: "Iteration failed", description: err.message, variant: "destructive" });
+      return null;
+    }
+  };
+
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-3.5rem)]">
-        {/* Header area with prompt - Stitch style */}
         {!result && !generating && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
             <motion.div
@@ -101,7 +134,6 @@ const Generator = () => {
           </div>
         )}
 
-        {/* Generating state */}
         {generating && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center animate-pulse shadow-glow">
@@ -112,17 +144,14 @@ const Generator = () => {
           </div>
         )}
 
-        {/* Results - variant grid */}
         {result && !generating && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top bar with prompt re-entry */}
             <div className="p-4 border-b border-border/50 flex items-center gap-4">
               <div className="flex-1">
                 <PromptInput onGenerate={handleGenerate} generating={generating} />
               </div>
             </div>
 
-            {/* Variant grid */}
             <div className="flex-1 overflow-auto p-6">
               <motion.div
                 initial={{ opacity: 0 }}
@@ -152,7 +181,6 @@ const Generator = () => {
           </div>
         )}
 
-        {/* Expanded preview overlay */}
         <AnimatePresence>
           {expandedVariant && result && (
             <ExpandedPreview
@@ -161,6 +189,7 @@ const Generator = () => {
               deviceWidth={result.deviceWidth}
               deviceHeight={result.deviceHeight}
               onClose={() => setExpandedVariant(null)}
+              onIterate={handleIterate}
             />
           )}
         </AnimatePresence>
