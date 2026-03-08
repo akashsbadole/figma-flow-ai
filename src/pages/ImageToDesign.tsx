@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import {
   Image, Upload, Loader2, Code, Copy, Check, Download, Wand2
 } from "lucide-react";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 const ImageToDesign = () => {
   const { user } = useAuth();
