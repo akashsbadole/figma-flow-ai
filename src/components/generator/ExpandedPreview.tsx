@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,15 +32,59 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   const [iterating, setIterating] = useState(false);
   const [history, setHistory] = useState<{ html: string; css: string }[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
-  const getScale = () => {
-    const maxH = window.innerHeight * 0.65;
-    const maxW = window.innerWidth * 0.55;
+  const fitScale = useCallback(() => {
+    const maxH = window.innerHeight * 0.55;
+    const maxW = window.innerWidth * 0.5;
     return Math.min(maxW / deviceWidth, maxH / deviceHeight, 1);
-  };
+  }, [deviceWidth, deviceHeight]);
 
-  const scale = getScale();
+  useEffect(() => {
+    setZoom(fitScale());
+    setPan({ x: 0, y: 0 });
+  }, [fitScale]);
 
+  const handleWheel = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setZoom((z) => Math.min(Math.max(z + delta, 0.1), 3));
+  }, []);
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      setIsPanning(true);
+      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    }
+  }, [pan]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPanning) return;
+      setPan({
+        x: panStart.current.panX + (e.clientX - panStart.current.x),
+        y: panStart.current.panY + (e.clientY - panStart.current.y),
+      });
+    };
+    const handleMouseUp = () => setIsPanning(false);
+    if (isPanning) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isPanning]);
+
+  const zoomIn = () => setZoom((z) => Math.min(z + 0.15, 3));
+  const zoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.1));
+  const resetView = () => { setZoom(fitScale()); setPan({ x: 0, y: 0 }); };
   const handleIterate = async () => {
     if (!followUp.trim() || !onIterate || iterating) return;
     setIterating(true);
@@ -204,16 +248,38 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
             </div>
           </div>
 
-          <div className="flex-1 bg-muted rounded-xl p-4 flex items-center justify-center overflow-hidden">
+          <div
+            ref={canvasRef}
+            className="flex-1 bg-muted rounded-xl p-4 flex items-center justify-center overflow-hidden relative"
+            onWheel={handleWheel}
+            onMouseDown={handleCanvasMouseDown}
+            style={{ cursor: isPanning ? "grabbing" : "default" }}
+          >
             <div
               style={{
                 width: deviceWidth,
                 height: deviceHeight,
-                transform: `scale(${scale})`,
-                transformOrigin: "top center",
+                transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                transformOrigin: "center center",
+                transition: isPanning ? "none" : "transform 0.15s ease-out",
               }}
             >
               {renderDeviceFrame(iframeRef)}
+            </div>
+
+            {/* Zoom controls */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2 py-1 shadow-md">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomOut}>
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs font-mono w-12 text-center text-muted-foreground">{Math.round(zoom * 100)}%</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomIn}>
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={resetView}>
+                <Maximize className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
 
