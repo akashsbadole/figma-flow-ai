@@ -316,8 +316,8 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
           </div>
         </div>
         <div className="flex gap-1 flex-wrap justify-end">
-          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { const j = generateFigmaTokensJSON(); navigator.clipboard.writeText(j); toast({ title: "Figma Tokens JSON copied!", description: "Paste into Figma Tokens Studio plugin" }); }}>
-            <Copy className="h-3 w-3" /> Figma Tokens
+          <Button size="sm" className="text-xs h-8 gap-1.5 font-semibold" onClick={copyEntireDesignForFigma}>
+            <Copy className="h-3.5 w-3.5" /> Copy for Figma
           </Button>
           <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { navigator.clipboard.writeText(generateCSSVars()); toast({ title: "CSS Variables copied!" }); }}>
             <Code className="h-3 w-3" /> CSS
@@ -327,9 +327,6 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
           </Button>
           <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => downloadFile(generateFigmaTokensJSON(), `${data.name}-figma-tokens.json`)}>
             <Download className="h-3 w-3" /> JSON
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => downloadFile(generateCSSVars(), `${data.name}-variables.css`)}>
-            <Download className="h-3 w-3" /> CSS File
           </Button>
         </div>
       </div>
