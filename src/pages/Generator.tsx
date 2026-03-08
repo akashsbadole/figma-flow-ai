@@ -269,6 +269,10 @@ const Generator = () => {
                   <TemplatesPreview
                     screens={screens}
                     components={components}
+                    pageLayouts={pageLayouts}
+                    formPatterns={formPatterns}
+                    dataDisplay={dataDisplay}
+                    navigationPatterns={navigationPatterns}
                     deviceWidth={result?.deviceWidth || 390}
                     deviceHeight={result?.deviceHeight || 844}
                     loading={tplLoading}
