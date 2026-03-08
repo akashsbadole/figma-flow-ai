@@ -22,6 +22,7 @@ import {
   generateStyleDictionary,
 } from "@/lib/design-system-export";
 import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 export interface GridConfig {
   desktop: { columns: number; gutter: string; margin: string };
@@ -201,6 +202,7 @@ const DEFAULT_TOKEN_NAMING = [
 const DesignSystemBuilder = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const [brandPrompt, setBrandPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [designSystem, setDesignSystem] = useState<DesignSystemData | null>(null);
@@ -208,6 +210,8 @@ const DesignSystemBuilder = () => {
 
   const handleGenerate = async () => {
     if (!brandPrompt.trim() || !user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
 
     try {

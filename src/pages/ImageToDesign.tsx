@@ -11,10 +11,12 @@ import { motion } from "framer-motion";
 import {
   Image, Upload, Loader2, Code, Copy, Check, Download, Wand2
 } from "lucide-react";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 const ImageToDesign = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -43,6 +45,8 @@ const ImageToDesign = () => {
 
   const handleGenerate = async () => {
     if (!imageBase64 || !user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
     setResult(null);
 

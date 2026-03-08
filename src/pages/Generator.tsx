@@ -11,6 +11,7 @@ import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
 import { DesignSystemPreview } from "@/components/generator/DesignSystemPreview";
 import { TemplatesPreview } from "@/components/generator/TemplatesPreview";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 interface Variant {
   id: string;
@@ -38,6 +39,7 @@ interface GenerationResult {
 const Generator = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
@@ -61,6 +63,8 @@ const Generator = () => {
 
   const handleGenerate = async (prompt: string, deviceType: string, referenceImage?: string) => {
     if (!user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
     setResult(null);
     setSelectedVariant(null);
