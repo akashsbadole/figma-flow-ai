@@ -115,42 +115,33 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
 
   const copyToFigma = async () => {
     try {
-      const container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      container.style.width = `${deviceWidth}px`;
-      container.style.height = `${deviceHeight}px`;
-      container.style.overflow = "hidden";
-      container.style.background = "white";
-      container.innerHTML = `<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`;
-      document.body.appendChild(container);
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${deviceWidth}" height="${deviceHeight}">
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>
+      ${editedHtml}
+    </div>
+  </foreignObject>
+</svg>`;
 
-      const canvas = await html2canvas(container, {
-        width: deviceWidth,
-        height: deviceHeight,
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-
-      document.body.removeChild(container);
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to create image"))), "image/png");
-      });
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
+      const htmlBlob = new Blob([svgString], { type: "text/html" });
 
       await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
+        new ClipboardItem({
+          "image/svg+xml": svgBlob,
+          "text/html": htmlBlob,
+        }),
       ]);
 
       setCopied(true);
-      toast({ title: "Design copied as image!", description: "Paste into Figma or any design tool" });
+      toast({ title: "Design copied as SVG!", description: "Paste into Figma — elements are editable" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      await navigator.clipboard.writeText(`<style>${editedCss}</style>\n${editedHtml}`);
+      const svgFallback = `<svg xmlns="http://www.w3.org/2000/svg" width="${deviceWidth}" height="${deviceHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}</div></foreignObject></svg>`;
+      await navigator.clipboard.writeText(svgFallback);
       setCopied(true);
-      toast({ title: "Copied as HTML code", description: "Image copy not supported" });
+      toast({ title: "SVG copied as text", description: "Paste into Figma or save as .svg file" });
       setTimeout(() => setCopied(false), 2000);
     }
   };
