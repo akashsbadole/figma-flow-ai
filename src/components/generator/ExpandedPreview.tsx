@@ -172,6 +172,12 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const copyAsReact = async () => {
+    const code = htmlCssToReactComponent(variant.name, editedHtml, editedCss);
+    await navigator.clipboard.writeText(code);
+    toast({ title: "React component copied!" });
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
