@@ -1,4 +1,4 @@
-import { DesignSystemData } from "@/pages/DesignSystemBuilder";
+import { DesignSystemData } from "@/components/design-system/types";
 
 export function generateFigmaTokens(ds: DesignSystemData): string {
   const tokens: any = {
