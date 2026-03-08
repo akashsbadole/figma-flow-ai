@@ -21,6 +21,7 @@ import {
   generateFigmaTokens,
   generateStyleDictionary,
 } from "@/lib/design-system-export";
+import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
 
 export interface GridConfig {
   desktop: { columns: number; gutter: string; margin: string };
@@ -369,9 +370,14 @@ const DesignSystemBuilder = () => {
                 )}
               </Button>
               {designSystem && (
-                <Button variant="outline" onClick={downloadAll}>
-                  <Download className="h-4 w-4 mr-1" /> Download All
-                </Button>
+                <>
+                  <Button onClick={() => copyDesignSystemForFigma(designSystem, toast)}>
+                    <Copy className="h-4 w-4 mr-1" /> Copy for Figma
+                  </Button>
+                  <Button variant="outline" onClick={downloadAll}>
+                    <Download className="h-4 w-4 mr-1" /> Download All
+                  </Button>
+                </>
               )}
             </div>
           </CardContent>
