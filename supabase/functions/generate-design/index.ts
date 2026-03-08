@@ -9,13 +9,45 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt } = await req.json();
+    const { prompt, deviceType = "mobile", variantCount = 4 } = await req.json();
     if (!prompt) throw new Error("Prompt is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Generate HTML/CSS code using AI
+    const deviceDimensions = {
+      mobile: { width: 390, height: 844, label: "iPhone 15 Pro" },
+      tablet: { width: 820, height: 1180, label: "iPad Air" },
+      desktop: { width: 1440, height: 900, label: "Desktop" },
+    };
+
+    const device = deviceDimensions[deviceType as keyof typeof deviceDimensions] || deviceDimensions.mobile;
+
+    const systemPrompt = `You are an expert UI designer creating ${variantCount} different design variants for a ${device.label} (${device.width}x${device.height}px) screen.
+
+For each variant, generate clean, modern HTML and CSS. Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "variants": [
+    {
+      "name": "Variant name (e.g. 'Clean Minimal', 'Bold Gradient')",
+      "html": "<the complete HTML markup>",
+      "css": "<the CSS styles scoped to this variant>"
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- Generate exactly ${variantCount} variants
+- Each variant's HTML should be a complete self-contained screen
+- Use viewport-relative sizing: the root container should be exactly ${device.width}px x ${device.height}px
+- Use modern CSS: gradients, shadows, rounded corners, good typography
+- Each variant must have a cohesive but DIFFERENT color palette
+- Add realistic placeholder content (text, icons as unicode/emoji)
+- Make each variant visually distinct and polished
+- Do not include any markdown, explanation, or code fences. Just the JSON object.`;
+
     const codeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -25,14 +57,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content: `You are an expert UI designer. Generate clean, modern HTML and CSS code based on the user's description. Return ONLY valid JSON with this exact structure:
-{"html": "<the HTML markup>", "css": "<the CSS styles>", "svg": "<optional SVG if applicable, or empty string>"}
-Do not include any markdown, explanation, or code fences. Just the JSON object.
-Make the designs visually appealing with modern CSS (gradients, shadows, rounded corners, good typography).
-Use a cohesive color palette. Make it responsive.`,
-          },
+          { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
       }),
@@ -49,6 +74,8 @@ Use a cohesive color palette. Make it responsive.`,
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const errText = await codeResponse.text();
+      console.error("AI error:", errText);
       throw new Error("AI generation failed");
     }
 
@@ -57,48 +84,27 @@ Use a cohesive color palette. Make it responsive.`,
 
     let parsed;
     try {
-      // Try to extract JSON from possible markdown fences
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
       parsed = JSON.parse(jsonMatch[1].trim());
     } catch {
-      parsed = { html: content, css: "", svg: "" };
+      // Fallback: treat as single variant
+      parsed = { variants: [{ name: "Design", html: content, css: "" }] };
     }
 
-    // Generate preview image using image model
-    let imageUrl = "";
-    try {
-      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [
-            {
-              role: "user",
-              content: `Create a clean, professional UI mockup/wireframe image for: ${prompt}. Make it look like a real web design with modern aesthetics.`,
-            },
-          ],
-          modalities: ["image", "text"],
-        }),
-      });
-
-      if (imageResponse.ok) {
-        const imageData = await imageResponse.json();
-        imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url || "";
-      }
-    } catch (e) {
-      console.error("Image generation failed, continuing without image:", e);
-    }
+    const variants = (parsed.variants || []).map((v: any, i: number) => ({
+      id: crypto.randomUUID(),
+      name: v.name || `Variant ${i + 1}`,
+      html: v.html || "",
+      css: v.css || "",
+    }));
 
     return new Response(
       JSON.stringify({
-        htmlCode: parsed.html || "",
-        cssCode: parsed.css || "",
-        svgCode: parsed.svg || "",
-        imageUrl,
+        variants,
+        deviceType,
+        deviceWidth: device.width,
+        deviceHeight: device.height,
+        deviceLabel: device.label,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
