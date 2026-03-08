@@ -26,6 +26,8 @@ interface UserSubscription {
   generations_limit: number;
 }
 
+type UserFilter = "all" | "admin" | "pro" | "free";
+
 const AdminPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
