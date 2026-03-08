@@ -18,6 +18,7 @@ interface Variant {
   name: string;
   html: string;
   css: string;
+  svg?: string;
 }
 
 interface TemplateItem {
