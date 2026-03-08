@@ -14,12 +14,13 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Wand2, LayoutGrid, Palette, LogOut, Sparkles } from "lucide-react";
+import { LayoutDashboard, Wand2, LayoutGrid, Palette, LogOut, Sparkles, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "AI Generator", url: "/generator", icon: Wand2 },
+  { title: "My Designs", url: "/my-designs", icon: Clock },
   { title: "Templates", url: "/templates", icon: LayoutGrid },
   { title: "Design System", url: "/design-system", icon: Palette },
 ];

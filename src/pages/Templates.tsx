@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { LayoutGrid, Search, Heart, Download, Code, Eye, X } from "lucide-react";
+import { LayoutGrid, Search, Heart, Download, Code, Eye, X, Copy, Check } from "lucide-react";
 
 const categories = ["All", "Landing Pages", "Dashboards", "Forms", "Cards", "Navigation", "E-commerce"];
 
@@ -86,6 +86,21 @@ const Templates = () => {
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: "Downloaded!", description: `${template.name} downloaded as ${format.toUpperCase()}` });
+  };
+
+  const copyToFigma = async (template: typeof sampleTemplates[0]) => {
+    const html = `<style>${template.css_code}</style>${template.html_code}`;
+    try {
+      const htmlBlob = new Blob([html], { type: "text/html" });
+      const textBlob = new Blob([html], { type: "text/plain" });
+      await navigator.clipboard.write([
+        new ClipboardItem({ "text/html": htmlBlob, "text/plain": textBlob }),
+      ]);
+      toast({ title: "Copied for Figma!", description: "Paste directly into Figma" });
+    } catch {
+      await navigator.clipboard.writeText(html);
+      toast({ title: "Copied as HTML" });
+    }
   };
 
   const toggleSave = (id: string) => {
@@ -173,6 +188,9 @@ const Templates = () => {
                     ))}
                   </div>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => copyToFigma(template)}>
+                      <Copy className="h-3 w-3 mr-1" /> Figma
+                    </Button>
                     <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "html")}>
                       <Download className="h-3 w-3 mr-1" /> HTML
                     </Button>
@@ -219,6 +237,9 @@ const Templates = () => {
               </Tabs>
             )}
             <div className="flex gap-2 justify-end mt-4">
+              <Button variant="outline" onClick={() => previewTemplate && copyToFigma(previewTemplate)}>
+                <Copy className="h-4 w-4 mr-1" /> Copy for Figma
+              </Button>
               <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "html")}>
                 <Download className="h-4 w-4 mr-1" /> Download HTML
               </Button>
