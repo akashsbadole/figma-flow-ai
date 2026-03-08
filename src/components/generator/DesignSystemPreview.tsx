@@ -172,7 +172,7 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
           </div>
         </div>
         <div className="flex gap-1 flex-wrap justify-end">
-          <Button size="sm" className="text-xs h-8 gap-1.5 font-semibold" onClick={copyEntireDesignForFigma}>
+          <Button size="sm" className="text-xs h-8 gap-1.5 font-semibold" onClick={handleCopyForFigma}>
             <Copy className="h-3.5 w-3.5" /> Copy for Figma
           </Button>
           <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { navigator.clipboard.writeText(generateCSSVars()); toast({ title: "CSS Variables copied!" }); }}>
