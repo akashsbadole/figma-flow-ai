@@ -101,18 +101,88 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
     { key: "avatar", label: "Avatar", html: data.components.avatarHtml, css: data.components.avatarCss },
   ].filter(c => c.html && c.css) : [];
 
+  const generateFigmaTokensJSON = () => {
+    const tokens: any = { global: { colors: {}, typography: {}, spacing: {}, borderRadius: {}, shadows: {}, opacity: {}, zIndex: {}, breakpoints: {} } };
+    colorEntries.forEach(([k, v]) => { tokens.global.colors[k] = { value: v, type: "color" }; });
+    typeScale.forEach((s: any) => { tokens.global.typography[s.name] = { value: { fontSize: s.size, lineHeight: s.lineHeight, letterSpacing: s.letterSpacing, fontFamily: data.typography.heading }, type: "typography" }; });
+    spacingItems.forEach((s) => { tokens.global.spacing[s.name] = { value: s.value, type: "spacing" }; });
+    radiusItems.forEach((r) => { tokens.global.borderRadius[r.name] = { value: r.value, type: "borderRadius" }; });
+    shadowItems.forEach((s) => { tokens.global.shadows[s.name] = { value: s.value, type: "boxShadow" }; });
+    opacityItems.forEach((o) => { tokens.global.opacity[o.name] = { value: o.value, type: "opacity" }; });
+    zIndexItems.forEach((z) => { tokens.global.zIndex[z.name] = { value: z.value, type: "other" }; });
+    breakpoints.forEach((b) => { tokens.global.breakpoints[b.name] = { value: b.value, type: "dimension" }; });
+    return JSON.stringify(tokens, null, 2);
+  };
+
+  const generateCSSVars = () => {
+    let css = `/* ${data.name} Design System */\n:root {\n`;
+    css += `  /* Colors */\n`;
+    colorEntries.forEach(([k, v]) => { css += `  --color-${k.replace(/([A-Z])/g, "-$1").toLowerCase()}: ${v};\n`; });
+    css += `\n  /* Typography */\n  --font-heading: '${data.typography.heading}', sans-serif;\n  --font-body: '${data.typography.body}', sans-serif;\n  --font-mono: '${data.typography.mono}', monospace;\n`;
+    typeScale.forEach((s: any) => { css += `  --font-size-${s.name}: ${s.size};\n  --line-height-${s.name}: ${s.lineHeight};\n`; });
+    css += `\n  /* Spacing */\n`;
+    spacingItems.forEach((s) => { css += `  --space-${s.name}: ${s.value};\n`; });
+    css += `\n  /* Border Radius */\n`;
+    radiusItems.forEach((r) => { css += `  --radius-${r.name}: ${r.value};\n`; });
+    css += `\n  /* Shadows */\n`;
+    shadowItems.forEach((s) => { css += `  --shadow-${s.name}: ${s.value};\n`; });
+    if (gradients.length) { css += `\n  /* Gradients */\n`; gradients.forEach((g) => { css += `  --gradient-${g.name}: ${g.value};\n`; }); }
+    if (transitions.length) { css += `\n  /* Transitions */\n`; transitions.forEach((t) => { css += `  --transition-${t.name}: ${t.duration} ${t.easing};\n`; }); }
+    css += `}`;
+    return css;
+  };
+
+  const generateTailwindCfg = () => {
+    const cfg: any = { theme: { extend: { colors: {}, fontFamily: {}, fontSize: {}, spacing: {}, borderRadius: {}, boxShadow: {} } } };
+    colorEntries.forEach(([k, v]) => { cfg.theme.extend.colors[k.replace(/([A-Z])/g, "-$1").toLowerCase()] = v; });
+    cfg.theme.extend.fontFamily = { heading: [data.typography.heading, "sans-serif"], body: [data.typography.body, "sans-serif"], mono: [data.typography.mono, "monospace"] };
+    typeScale.forEach((s: any) => { cfg.theme.extend.fontSize[s.name] = [s.size, { lineHeight: s.lineHeight, letterSpacing: s.letterSpacing }]; });
+    spacingItems.forEach((s) => { cfg.theme.extend.spacing[s.name] = s.value; });
+    radiusItems.forEach((r) => { cfg.theme.extend.borderRadius[r.name] = r.value; });
+    shadowItems.forEach((s) => { cfg.theme.extend.boxShadow[s.name] = s.value; });
+    return `// ${data.name} - Tailwind Configuration\nexport default ${JSON.stringify(cfg, null, 2)} satisfies Config;`;
+  };
+
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `Downloaded ${filename}` });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: data.colors?.primary || "hsl(var(--primary))" }}>
-          <span className="text-lg font-bold text-primary-foreground">{data.name?.charAt(0) || "D"}</span>
+      {/* Header + Export Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: data.colors?.primary || "hsl(var(--primary))" }}>
+            <span className="text-lg font-bold text-primary-foreground">{data.name?.charAt(0) || "D"}</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">{data.name}</h3>
+            <p className="text-[10px] text-muted-foreground">
+              {colorEntries.length} colors · {typeScale.length} type sizes · {spacingItems.length} spacing tokens
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-semibold">{data.name}</h3>
-          <p className="text-[10px] text-muted-foreground">
-            {colorEntries.length} colors · {typeScale.length} type sizes · {spacingItems.length} spacing tokens
-          </p>
+        <div className="flex gap-1 flex-wrap justify-end">
+          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { const j = generateFigmaTokensJSON(); navigator.clipboard.writeText(j); toast({ title: "Figma Tokens JSON copied!", description: "Paste into Figma Tokens Studio plugin" }); }}>
+            <Copy className="h-3 w-3" /> Figma Tokens
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { navigator.clipboard.writeText(generateCSSVars()); toast({ title: "CSS Variables copied!" }); }}>
+            <Code className="h-3 w-3" /> CSS
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => { navigator.clipboard.writeText(generateTailwindCfg()); toast({ title: "Tailwind config copied!" }); }}>
+            <Code className="h-3 w-3" /> Tailwind
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => downloadFile(generateFigmaTokensJSON(), `${data.name}-figma-tokens.json`)}>
+            <Download className="h-3 w-3" /> JSON
+          </Button>
+          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => downloadFile(generateCSSVars(), `${data.name}-variables.css`)}>
+            <Download className="h-3 w-3" /> CSS File
+          </Button>
         </div>
       </div>
 
