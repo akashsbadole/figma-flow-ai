@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-design-system]
 verify_jwt = false
+
+[functions.generate-templates]
+verify_jwt = false
