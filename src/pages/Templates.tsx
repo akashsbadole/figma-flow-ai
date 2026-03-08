@@ -188,6 +188,9 @@ const Templates = () => {
                     ))}
                   </div>
                   <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => copyToFigma(template)}>
+                      <Copy className="h-3 w-3 mr-1" /> Figma
+                    </Button>
                     <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "html")}>
                       <Download className="h-3 w-3 mr-1" /> HTML
                     </Button>
