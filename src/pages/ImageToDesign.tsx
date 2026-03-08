@@ -16,6 +16,7 @@ import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 const ImageToDesign = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { checkAndIncrement } = useGenerationLimit();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
