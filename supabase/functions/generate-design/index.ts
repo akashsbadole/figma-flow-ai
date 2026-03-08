@@ -26,52 +26,22 @@ serve(async (req) => {
     let systemPrompt: string;
 
     if (iterateOn) {
-      // Iteration mode: modify existing design
       systemPrompt = `You are an expert UI designer. The user has an existing design and wants to modify it.
 
 Current HTML:
-\`\`\`html
 ${iterateOn.html}
-\`\`\`
 
 Current CSS:
-\`\`\`css
 ${iterateOn.css}
-\`\`\`
 
-Apply the user's requested changes while keeping the overall structure intact. Return ONLY valid JSON:
-{
-  "variants": [
-    {
-      "name": "Updated Design",
-      "html": "<the modified HTML>",
-      "css": "<the modified CSS>"
-    }
-  ]
-}
-
-RULES:
-- Keep the same viewport size: ${device.width}x${device.height}px
-- Only modify what the user asks for
-- Preserve the overall layout and structure
-- Do not include markdown, explanation, or code fences. Just the JSON.`;
+Apply the user's requested changes while keeping the overall structure intact.
+Keep the same viewport size: ${device.width}x${device.height}px. Only modify what the user asks for.`;
     } else {
       systemPrompt = `You are an expert UI designer creating ${variantCount} different design variants for a ${device.label} (${device.width}x${device.height}px) screen.
 
 ${referenceImage ? "The user has provided a reference image. Use it as visual inspiration for the design style, colors, and layout approach." : ""}
 
 For each variant, generate clean, modern HTML and CSS. Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
-
-Return ONLY valid JSON with this exact structure:
-{
-  "variants": [
-    {
-      "name": "Variant name (e.g. 'Clean Minimal', 'Bold Gradient')",
-      "html": "<the complete HTML markup>",
-      "css": "<the CSS styles scoped to this variant>"
-    }
-  ]
-}
 
 IMPORTANT RULES:
 - Generate exactly ${variantCount} variants
@@ -80,8 +50,7 @@ IMPORTANT RULES:
 - Use modern CSS: gradients, shadows, rounded corners, good typography
 - Each variant must have a cohesive but DIFFERENT color palette
 - Add realistic placeholder content (text, icons as unicode/emoji)
-- Make each variant visually distinct and polished
-- Do not include any markdown, explanation, or code fences. Just the JSON object.`;
+- Make each variant visually distinct and polished`;
     }
 
     // Build messages
@@ -99,6 +68,18 @@ IMPORTANT RULES:
       messages.push({ role: "user", content: prompt });
     }
 
+    // Build variant properties dynamically
+    const variantProperties: Record<string, any> = {};
+    const requiredFields: string[] = [];
+    const count = iterateOn ? 1 : Math.min(variantCount, 6);
+
+    for (let i = 1; i <= count; i++) {
+      variantProperties[`variant_${i}_name`] = { type: "string", description: `Name for variant ${i} (e.g. 'Clean Minimal', 'Bold Gradient')` };
+      variantProperties[`variant_${i}_html`] = { type: "string", description: `Complete HTML markup for variant ${i}. Root container must be ${device.width}x${device.height}px.` };
+      variantProperties[`variant_${i}_css`] = { type: "string", description: `CSS styles for variant ${i}. Use modern CSS with gradients, shadows, good typography.` };
+      requiredFields.push(`variant_${i}_name`, `variant_${i}_html`, `variant_${i}_css`);
+    }
+
     const codeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -106,8 +87,24 @@ IMPORTANT RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: referenceImage ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview",
+        model: referenceImage ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash",
         messages,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_design_variants",
+              description: `Generate ${count} UI design variant(s) with HTML and CSS`,
+              parameters: {
+                type: "object",
+                properties: variantProperties,
+                required: requiredFields,
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "generate_design_variants" } },
       }),
     });
 
@@ -123,48 +120,48 @@ IMPORTANT RULES:
         });
       }
       const errText = await codeResponse.text();
-      console.error("AI error:", errText);
+      console.error("AI error:", codeResponse.status, errText);
       throw new Error("AI generation failed");
     }
 
     const codeData = await codeResponse.json();
-    const content = codeData.choices?.[0]?.message?.content || "";
+    const toolCall = codeData.choices?.[0]?.message?.tool_calls?.[0];
 
-    let parsed;
+    if (!toolCall) {
+      // Fallback: try parsing from content
+      const content = codeData.choices?.[0]?.message?.content || "";
+      console.error("No tool call returned. Content preview:", content.substring(0, 300));
+      throw new Error("AI did not return structured output");
+    }
+
+    let args: Record<string, string>;
     try {
-      // Clean markdown fences
-      let cleaned = content
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .trim();
-
-      // Find JSON boundaries
-      const jsonStart = cleaned.indexOf("{");
-      const jsonEnd = cleaned.lastIndexOf("}");
-      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
-      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-
-      try {
-        parsed = JSON.parse(cleaned);
-      } catch {
-        // Fix trailing commas and control chars
-        cleaned = cleaned
-          .replace(/,\s*}/g, "}")
-          .replace(/,\s*]/g, "]")
-          .replace(/[\x00-\x1F\x7F]/g, " ");
-        parsed = JSON.parse(cleaned);
-      }
-    } catch (parseErr) {
-      console.error("Parse error. Content preview:", content.substring(0, 500));
+      args = JSON.parse(toolCall.function.arguments);
+    } catch (e) {
+      console.error("Failed to parse tool call args:", toolCall.function.arguments?.substring(0, 500));
       throw new Error("Failed to parse AI response");
     }
 
-    const variants = (parsed.variants || []).map((v: any, i: number) => ({
-      id: crypto.randomUUID(),
-      name: v.name || `Variant ${i + 1}`,
-      html: v.html || "",
-      css: v.css || "",
-    }));
+    // Extract variants from flat tool call response
+    const variants = [];
+    for (let i = 1; i <= count; i++) {
+      const name = args[`variant_${i}_name`];
+      const html = args[`variant_${i}_html`];
+      const css = args[`variant_${i}_css`];
+      if (html && css) {
+        variants.push({
+          id: crypto.randomUUID(),
+          name: name || `Variant ${i}`,
+          html,
+          css,
+        });
+      }
+    }
+
+    if (variants.length === 0) {
+      console.error("No variants extracted from args keys:", Object.keys(args));
+      throw new Error("No design variants generated");
+    }
 
     return new Response(
       JSON.stringify({
