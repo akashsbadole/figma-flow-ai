@@ -257,6 +257,46 @@ const DesignSystemBuilder = () => {
       ds.figmaFileStructure = ds.figmaFileStructure || DEFAULT_FILE_STRUCTURE;
       ds.tokenNaming = ds.tokenNaming || DEFAULT_TOKEN_NAMING;
 
+      // Dark mode defaults
+      ds.darkModeColors = ds.darkModeColors || {
+        primary: ds.colors.primary, primaryLight: ds.colors.primaryLight, primaryDark: ds.colors.primaryDark,
+        secondary: ds.colors.secondary, secondaryLight: ds.colors.secondaryLight, accent: ds.colors.accent,
+        background: "#0f172a", surface: "#1e293b", foreground: "#f1f5f9",
+        muted: "#334155", success: ds.colors.success, warning: ds.colors.warning,
+        error: ds.colors.error, info: ds.colors.info,
+      };
+
+      // Icon system defaults
+      ds.iconSystem = ds.iconSystem || {
+        sizes: DEFAULT_ICON_SIZES,
+        strokeWidth: "1.5px",
+        gridSize: "24px",
+        cornerRadius: "0px",
+        recommendedLibraries: ["Lucide Icons", "Heroicons", "Material Icons"],
+      };
+
+      // Motion tokens defaults
+      ds.motionTokens = ds.motionTokens || {
+        easingCurves: [
+          { name: "ease-out", value: "cubic-bezier(0.0, 0, 0.2, 1)", description: "Deceleration curve" },
+          { name: "ease-in", value: "cubic-bezier(0.4, 0, 1, 1)", description: "Acceleration curve" },
+          { name: "ease-in-out", value: "cubic-bezier(0.4, 0, 0.2, 1)", description: "Standard curve" },
+          { name: "spring", value: "cubic-bezier(0.175, 0.885, 0.32, 1.275)", description: "Overshoot spring" },
+        ],
+        durations: [
+          { name: "instant", value: "100ms", useCase: "Micro-interactions" },
+          { name: "fast", value: "200ms", useCase: "Buttons, toggles" },
+          { name: "normal", value: "300ms", useCase: "Panels, modals" },
+          { name: "slow", value: "500ms", useCase: "Page transitions" },
+        ],
+        animations: [
+          { name: "fadeIn", keyframes: "opacity: 0 → 1", duration: "300ms", easing: "ease-out" },
+          { name: "slideUp", keyframes: "translateY(16px) → 0", duration: "300ms", easing: "ease-out" },
+          { name: "scaleIn", keyframes: "scale(0.95) → 1", duration: "200ms", easing: "spring" },
+          { name: "pulse", keyframes: "opacity: 1 → 0.5 → 1", duration: "2000ms", easing: "ease-in-out" },
+        ],
+      };
+
       // Fill component defaults
       ds.components = ds.components || {};
       ds.components.badgeHtml = ds.components.badgeHtml || '<span class="badge badge-primary">Primary</span> <span class="badge badge-success">Success</span> <span class="badge badge-warning">Warning</span>';
@@ -265,6 +305,18 @@ const DesignSystemBuilder = () => {
       ds.components.alertCss = ds.components.alertCss || '.alert{padding:12px 16px;border-radius:8px;margin-bottom:8px;font-size:14px;} .alert-info{background:var(--color-info);color:#fff;} .alert-error{background:var(--color-error);color:#fff;}';
       ds.components.avatarHtml = ds.components.avatarHtml || '<div class="avatar">JD</div><div class="avatar avatar-lg">AB</div>';
       ds.components.avatarCss = ds.components.avatarCss || '.avatar{width:40px;height:40px;border-radius:50%;background:var(--color-primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;margin-right:8px;} .avatar-lg{width:56px;height:56px;font-size:18px;}';
+      ds.components.tabsHtml = ds.components.tabsHtml || '<div class="tabs"><button class="tab active">Tab 1</button><button class="tab">Tab 2</button><button class="tab">Tab 3</button></div>';
+      ds.components.tabsCss = ds.components.tabsCss || '.tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;}.tab{padding:8px 16px;border:none;background:none;cursor:pointer;font-size:14px;color:#6b7280;border-bottom:2px solid transparent;margin-bottom:-2px;}.tab.active{color:var(--color-primary);border-bottom-color:var(--color-primary);font-weight:600;}';
+      ds.components.modalHtml = ds.components.modalHtml || '<div class="modal-overlay"><div class="modal"><h3>Modal Title</h3><p>Modal content goes here.</p><div class="modal-actions"><button class="btn-secondary">Cancel</button><button class="btn-primary">Confirm</button></div></div></div>';
+      ds.components.modalCss = ds.components.modalCss || '.modal-overlay{position:relative;background:rgba(0,0,0,0.3);border-radius:12px;padding:40px;display:flex;align-items:center;justify-content:center;}.modal{background:#fff;border-radius:12px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.15);}h3{margin:0 0 8px;font-size:18px;}p{color:#6b7280;font-size:14px;margin:0 0 16px;}.modal-actions{display:flex;gap:8px;justify-content:flex-end;}.btn-primary{background:var(--color-primary,#3b82f6);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}.btn-secondary{background:#f3f4f6;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}';
+      ds.components.tooltipHtml = ds.components.tooltipHtml || '<div class="tooltip-demo"><button class="tooltip-trigger">Hover me</button><div class="tooltip">Tooltip text</div></div>';
+      ds.components.tooltipCss = ds.components.tooltipCss || '.tooltip-demo{position:relative;display:inline-block;padding:20px;}.tooltip-trigger{padding:8px 16px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;font-size:14px;}.tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;margin-bottom:8px;}';
+      ds.components.navbarHtml = ds.components.navbarHtml || '<nav class="navbar"><div class="nav-brand">Brand</div><div class="nav-links"><a href="#">Home</a><a href="#">About</a><a href="#">Contact</a></div><button class="nav-cta">Get Started</button></nav>';
+      ds.components.navbarCss = ds.components.navbarCss || '.navbar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#fff;border-bottom:1px solid #e5e7eb;}.nav-brand{font-weight:700;font-size:18px;}.nav-links{display:flex;gap:24px;}.nav-links a{text-decoration:none;color:#6b7280;font-size:14px;}.nav-links a:hover{color:var(--color-primary);}.nav-cta{background:var(--color-primary,#3b82f6);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;}';
+      ds.components.toggleHtml = ds.components.toggleHtml || '<label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label>';
+      ds.components.toggleCss = ds.components.toggleCss || '.toggle{position:relative;display:inline-block;width:44px;height:24px;}input{opacity:0;width:0;height:0;}.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:24px;transition:0.3s;}input:checked+.toggle-slider{background:var(--color-primary,#3b82f6);}.toggle-slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;}input:checked+.toggle-slider:before{transform:translateX(20px);}';
+      ds.components.dropdownHtml = ds.components.dropdownHtml || '<div class="dropdown"><button class="dropdown-trigger">Options ▾</button><div class="dropdown-menu"><a href="#">Edit</a><a href="#">Duplicate</a><a href="#">Delete</a></div></div>';
+      ds.components.dropdownCss = ds.components.dropdownCss || '.dropdown{position:relative;display:inline-block;}.dropdown-trigger{padding:8px 16px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;font-size:14px;}.dropdown-menu{position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);min-width:160px;overflow:hidden;}.dropdown-menu a{display:block;padding:8px 16px;text-decoration:none;color:#374151;font-size:14px;}.dropdown-menu a:hover{background:#f3f4f6;}';
 
       setDesignSystem(ds);
 
