@@ -196,6 +196,23 @@ const Generator = () => {
     }
   };
 
+  const handleBulkExport = async () => {
+    if (!result?.variants.length) return;
+    try {
+      const projectName = currentPrompt.slice(0, 40).replace(/[^a-zA-Z0-9\s-]/g, "").trim().replace(/\s+/g, "-") || "designs";
+      const blob = await exportVariantsAsZip(result.variants, projectName);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${projectName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "ZIP downloaded!", description: `${result.variants.length} variants exported` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+  };
+
   const anyLoading = generating || dsLoading || tplLoading;
   const hasResults = result || designSystem || screens.length > 0 || components.length > 0;
 
