@@ -21,12 +21,16 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [projectsRes, designsRes] = await Promise.all([
+      const [projectsRes, designsRes, subRes, histRes] = await Promise.all([
         supabase.from("projects").select("*").order("updated_at", { ascending: false }).limit(6),
         supabase.from("designs").select("*").order("created_at", { ascending: false }).limit(4),
+        supabase.from("user_subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("generation_history").select("id", { count: "exact", head: true }),
       ]);
       setProjects(projectsRes.data || []);
       setRecentDesigns(designsRes.data || []);
+      setSubscription(subRes.data);
+      setHistoryCount(histRes.count || 0);
       setLoading(false);
     };
     fetchData();
