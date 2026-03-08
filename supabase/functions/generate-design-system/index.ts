@@ -15,6 +15,13 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    const tokenArrayItem = (fields: Record<string, any>) => ({
+      type: "object" as const,
+      properties: fields,
+      required: Object.keys(fields),
+      additionalProperties: false,
+    });
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -36,20 +43,11 @@ serve(async (req) => {
                   colors: {
                     type: "object",
                     properties: {
-                      primary: { type: "string", description: "Primary brand color as hex" },
-                      primaryLight: { type: "string", description: "Light variant of primary" },
-                      primaryDark: { type: "string", description: "Dark variant of primary" },
-                      secondary: { type: "string", description: "Secondary color as hex" },
-                      secondaryLight: { type: "string", description: "Light variant of secondary" },
-                      accent: { type: "string", description: "Accent/highlight color as hex" },
-                      background: { type: "string", description: "Background color as hex" },
-                      surface: { type: "string", description: "Surface/card color as hex" },
-                      foreground: { type: "string", description: "Text/foreground color as hex" },
-                      muted: { type: "string", description: "Muted/subtle color as hex" },
-                      success: { type: "string", description: "Success state color as hex" },
-                      warning: { type: "string", description: "Warning state color as hex" },
-                      error: { type: "string", description: "Error/destructive color as hex" },
-                      info: { type: "string", description: "Info state color as hex" },
+                      primary: { type: "string" }, primaryLight: { type: "string" }, primaryDark: { type: "string" },
+                      secondary: { type: "string" }, secondaryLight: { type: "string" }, accent: { type: "string" },
+                      background: { type: "string" }, surface: { type: "string" }, foreground: { type: "string" },
+                      muted: { type: "string" }, success: { type: "string" }, warning: { type: "string" },
+                      error: { type: "string" }, info: { type: "string" },
                     },
                     required: ["primary", "primaryLight", "primaryDark", "secondary", "secondaryLight", "accent", "background", "surface", "foreground", "muted", "success", "warning", "error", "info"],
                     additionalProperties: false,
@@ -57,102 +55,37 @@ serve(async (req) => {
                   typography: {
                     type: "object",
                     properties: {
-                      heading: { type: "string", description: "Heading font family name (Google Font)" },
-                      body: { type: "string", description: "Body font family name (Google Font)" },
-                      mono: { type: "string", description: "Monospace font family name" },
-                      scale: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string", description: "Token name like xs, sm, base, lg, xl, 2xl, 3xl, 4xl, 5xl" },
-                            size: { type: "string", description: "Font size in rem" },
-                            lineHeight: { type: "string", description: "Line height value" },
-                            letterSpacing: { type: "string", description: "Letter spacing value" },
-                          },
-                          required: ["name", "size", "lineHeight", "letterSpacing"],
-                          additionalProperties: false,
-                        },
-                      },
-                      weights: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            name: { type: "string", description: "Weight name like light, regular, medium, semibold, bold" },
-                            value: { type: "number", description: "CSS font-weight value" },
-                          },
-                          required: ["name", "value"],
-                          additionalProperties: false,
-                        },
-                      },
+                      heading: { type: "string" }, body: { type: "string" }, mono: { type: "string" },
+                      scale: { type: "array", items: tokenArrayItem({ name: { type: "string" }, size: { type: "string" }, lineHeight: { type: "string" }, letterSpacing: { type: "string" } }) },
+                      weights: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "number" } }) },
                     },
                     required: ["heading", "body", "mono", "scale", "weights"],
                     additionalProperties: false,
                   },
-                  spacing: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Token name like xs, sm, md, lg, xl, 2xl, 3xl" },
-                        value: { type: "string", description: "Spacing value in rem" },
-                      },
-                      required: ["name", "value"],
-                      additionalProperties: false,
-                    },
-                  },
-                  borderRadius: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Token name like none, sm, md, lg, xl, full" },
-                        value: { type: "string", description: "Border radius value" },
-                      },
-                      required: ["name", "value"],
-                      additionalProperties: false,
-                    },
-                  },
-                  shadows: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Shadow name like sm, md, lg, xl" },
-                        value: { type: "string", description: "CSS box-shadow value" },
-                      },
-                      required: ["name", "value"],
-                      additionalProperties: false,
-                    },
-                  },
-                  gradients: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Gradient name like primary, accent, warm" },
-                        value: { type: "string", description: "CSS linear-gradient value" },
-                      },
-                      required: ["name", "value"],
-                      additionalProperties: false,
-                    },
-                  },
+                  spacing: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                  borderRadius: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                  shadows: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                  gradients: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                  breakpoints: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "string" } }) },
+                  opacity: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "number" } }) },
+                  zIndex: { type: "array", items: tokenArrayItem({ name: { type: "string" }, value: { type: "number" } }) },
+                  transitions: { type: "array", items: tokenArrayItem({ name: { type: "string" }, duration: { type: "string" }, easing: { type: "string" } }) },
+                  borders: { type: "array", items: tokenArrayItem({ name: { type: "string" }, width: { type: "string" }, style: { type: "string" }, color: { type: "string" } }) },
                   components: {
                     type: "object",
                     properties: {
-                      buttonHtml: { type: "string", description: "Sample button component HTML with primary, secondary, outline variants" },
-                      buttonCss: { type: "string", description: "CSS for the button component using design tokens" },
-                      cardHtml: { type: "string", description: "Sample card component HTML" },
-                      cardCss: { type: "string", description: "CSS for the card component using design tokens" },
-                      inputHtml: { type: "string", description: "Sample input component HTML with label" },
-                      inputCss: { type: "string", description: "CSS for the input component using design tokens" },
+                      buttonHtml: { type: "string" }, buttonCss: { type: "string" },
+                      cardHtml: { type: "string" }, cardCss: { type: "string" },
+                      inputHtml: { type: "string" }, inputCss: { type: "string" },
+                      badgeHtml: { type: "string" }, badgeCss: { type: "string" },
+                      alertHtml: { type: "string" }, alertCss: { type: "string" },
+                      avatarHtml: { type: "string" }, avatarCss: { type: "string" },
                     },
-                    required: ["buttonHtml", "buttonCss", "cardHtml", "cardCss", "inputHtml", "inputCss"],
+                    required: ["buttonHtml", "buttonCss", "cardHtml", "cardCss", "inputHtml", "inputCss", "badgeHtml", "badgeCss", "alertHtml", "alertCss", "avatarHtml", "avatarCss"],
                     additionalProperties: false,
                   },
                 },
-                required: ["name", "colors", "typography", "spacing", "borderRadius", "shadows", "gradients", "components"],
+                required: ["name", "colors", "typography", "spacing", "borderRadius", "shadows", "gradients", "breakpoints", "opacity", "zIndex", "transitions", "borders", "components"],
                 additionalProperties: false,
               },
             },
@@ -167,13 +100,19 @@ serve(async (req) => {
 Rules:
 - All colors must be valid hex codes
 - Choose Google Fonts that match the brand personality
-- Create a harmonious, accessible color palette (check contrast ratios mentally)
+- Create a harmonious, accessible color palette (check contrast ratios)
 - Include semantic colors (success, warning, error, info)
 - Provide a complete type scale from xs to 5xl
-- Include multiple font weights
+- Include multiple font weights (light, regular, medium, semibold, bold)
 - Create practical shadows and gradients
+- Include responsive breakpoints (sm, md, lg, xl, 2xl)
+- Include opacity scale (0, 25, 50, 75, 100)
+- Include z-index layers (base, dropdown, sticky, modal, popover, toast)
+- Include transition presets (fast, normal, slow) with easing curves
+- Include border definitions (thin, medium, thick)
 - Component HTML/CSS should use CSS custom properties referencing the tokens
-- Components should look polished and production-ready`,
+- Components should look polished and production-ready
+- Generate badge, alert, and avatar components in addition to button, card, and input`,
           },
           { role: "user", content: prompt },
         ],
