@@ -272,6 +272,9 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               <Button variant="outline" size="sm" onClick={downloadSvg} disabled={!variant.svg}>
                 <FileDown className="h-4 w-4 mr-1" /> SVG
               </Button>
+              <Button variant="outline" size="sm" onClick={copyAsReact}>
+                <Braces className="h-4 w-4 mr-1" /> React
+              </Button>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />
               </Button>
