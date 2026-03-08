@@ -33,54 +33,36 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert UI designer. Generate a comprehensive template collection based on the user's prompt.
+            content: `You are an expert UI designer. Generate a template collection based on the user's prompt.
 
-Generate FIVE categories of templates:
+Generate templates in these categories (keep each template's HTML/CSS concise):
 
-1. PAGE LAYOUTS (4 templates): Full page designs — Landing/Hero, Dashboard, Settings/Profile, Detail/Content page. Each must fill ${device.width}x${device.height}px.
+1. PAGE LAYOUTS (2 templates): Landing page and Dashboard. Each fills ${device.width}x${device.height}px.
+2. FORM PATTERNS (2 templates): Login form and Contact form.
+3. DATA DISPLAY (2 templates): Data table and Card grid.
+4. NAVIGATION PATTERNS (2 templates): Top navbar and Sidebar nav.
+5. REUSABLE COMPONENTS (2 templates): Modal dialog and Toast notification.
 
-2. FORM PATTERNS (3 templates): Login/Signup form, Contact/Feedback form, Multi-step wizard form. Show complete, styled, realistic forms with labels, inputs, buttons, and validation states.
+Viewport: ${device.width}x${device.height}px (${device.label})
 
-3. DATA DISPLAY (3 templates): Data table with sorting headers, Card grid/list view, Detail/Stats view with charts or metrics.
-
-4. NAVIGATION PATTERNS (3 templates): Top navbar with dropdowns, Sidebar navigation, Bottom tab bar (mobile) or breadcrumb bar (desktop).
-
-5. REUSABLE COMPONENTS (4 templates): Modal/Dialog, Toast/Notification, Empty state, Loading skeleton.
-
-Each template must have its own HTML and CSS. Viewport: ${device.width}x${device.height}px (${device.label})
-
-Return ONLY valid JSON:
+Return ONLY valid JSON (no markdown, no code fences):
 {
-  "pageLayouts": [
-    { "name": "Template Name", "category": "landing|dashboard|settings|detail", "html": "<html>", "css": "<css>" }
-  ],
-  "formPatterns": [
-    { "name": "Form Name", "category": "auth|contact|wizard", "html": "<html>", "css": "<css>" }
-  ],
-  "dataDisplay": [
-    { "name": "Display Name", "category": "table|cards|stats", "html": "<html>", "css": "<css>" }
-  ],
-  "navigationPatterns": [
-    { "name": "Nav Name", "category": "topnav|sidebar|bottomtab", "html": "<html>", "css": "<css>" }
-  ],
-  "components": [
-    { "name": "Component Name", "category": "modal|toast|empty|skeleton", "html": "<html>", "css": "<css>" }
-  ]
+  "pageLayouts": [{ "name": "string", "category": "string", "html": "string", "css": "string" }],
+  "formPatterns": [{ "name": "string", "category": "string", "html": "string", "css": "string" }],
+  "dataDisplay": [{ "name": "string", "category": "string", "html": "string", "css": "string" }],
+  "navigationPatterns": [{ "name": "string", "category": "string", "html": "string", "css": "string" }],
+  "components": [{ "name": "string", "category": "string", "html": "string", "css": "string" }]
 }
 
 RULES:
-- Page layouts should be complete self-contained pages filling ${device.width}x${device.height}px
-- Form patterns should be centered on a ${device.width}x${device.height}px container
-- Data display should fill ${device.width}x${device.height}px
-- Navigation patterns: show the nav element on a ${device.width}x400px container
-- Components: show centered on a ${device.width}x400px container
-- Use consistent colors, fonts, and spacing across ALL templates
-- Make them visually polished and production-ready
-- Add realistic placeholder content (names, dates, stats, etc.)
-- Do not include markdown, explanation, or code fences. Just the JSON.`,
+- Keep HTML/CSS minimal but polished — no external dependencies
+- Use consistent colors and typography matching the user's prompt
+- Add realistic placeholder content
+- Do NOT wrap in markdown code fences`,
           },
           { role: "user", content: prompt },
         ],
+        max_tokens: 8192,
       }),
     });
 
@@ -105,9 +87,30 @@ RULES:
 
     let parsed;
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      parsed = JSON.parse(jsonMatch[1].trim());
-    } catch {
+      // Clean markdown fences if present
+      let cleaned = content
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+
+      // Find JSON boundaries
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found");
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Fix trailing commas and control chars
+        cleaned = cleaned
+          .replace(/,\s*}/g, "}")
+          .replace(/,\s*]/g, "]")
+          .replace(/[\x00-\x1F\x7F]/g, " ");
+        parsed = JSON.parse(cleaned);
+      }
+    } catch (parseErr) {
+      console.error("Parse error. Content preview:", content.substring(0, 500));
       throw new Error("Failed to parse AI response");
     }
 
