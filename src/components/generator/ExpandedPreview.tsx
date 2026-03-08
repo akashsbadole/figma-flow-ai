@@ -32,15 +32,59 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   const [iterating, setIterating] = useState(false);
   const [history, setHistory] = useState<{ html: string; css: string }[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
 
-  const getScale = () => {
-    const maxH = window.innerHeight * 0.65;
-    const maxW = window.innerWidth * 0.55;
+  const fitScale = useCallback(() => {
+    const maxH = window.innerHeight * 0.55;
+    const maxW = window.innerWidth * 0.5;
     return Math.min(maxW / deviceWidth, maxH / deviceHeight, 1);
-  };
+  }, [deviceWidth, deviceHeight]);
 
-  const scale = getScale();
+  useEffect(() => {
+    setZoom(fitScale());
+    setPan({ x: 0, y: 0 });
+  }, [fitScale]);
 
+  const handleWheel = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setZoom((z) => Math.min(Math.max(z + delta, 0.1), 3));
+  }, []);
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      setIsPanning(true);
+      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    }
+  }, [pan]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPanning) return;
+      setPan({
+        x: panStart.current.panX + (e.clientX - panStart.current.x),
+        y: panStart.current.panY + (e.clientY - panStart.current.y),
+      });
+    };
+    const handleMouseUp = () => setIsPanning(false);
+    if (isPanning) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isPanning]);
+
+  const zoomIn = () => setZoom((z) => Math.min(z + 0.15, 3));
+  const zoomOut = () => setZoom((z) => Math.max(z - 0.15, 0.1));
+  const resetView = () => { setZoom(fitScale()); setPan({ x: 0, y: 0 }); };
   const handleIterate = async () => {
     if (!followUp.trim() || !onIterate || iterating) return;
     setIterating(true);
