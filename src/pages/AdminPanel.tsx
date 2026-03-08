@@ -229,15 +229,30 @@ const AdminPanel = () => {
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        {/* Filter tabs + Search */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex gap-1 p-1 rounded-lg bg-muted/50">
+            {(["all", "admin", "pro", "free"] as UserFilter[]).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                className="text-xs h-7 capitalize"
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? "All" : f === "admin" ? "Admins" : f === "pro" ? "Pro Users" : "Free Users"}
+              </Button>
+            ))}
+          </div>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         {/* Users Table */}
