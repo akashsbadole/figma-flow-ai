@@ -271,11 +271,17 @@ const Generator = () => {
 
               <TabsContent value="variants" className="flex-1 overflow-auto p-6 mt-0">
                 {result && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto"
-                  >
+                  <>
+                    <div className="flex justify-end mb-4 max-w-7xl mx-auto">
+                      <Button variant="outline" size="sm" onClick={handleBulkExport}>
+                        <PackageOpen className="h-4 w-4 mr-1" /> Export All as ZIP
+                      </Button>
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto"
+                    >
                     {result.variants.map((variant, i) => (
                       <motion.div key={variant.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                         <VariantCard
