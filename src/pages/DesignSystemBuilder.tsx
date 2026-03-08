@@ -61,6 +61,7 @@ export interface AutoLayoutRule {
 export interface DesignSystemData {
   name: string;
   colors: Record<string, string>;
+  darkModeColors?: Record<string, string>;
   neutralColors: { name: string; value: string }[];
   typography: {
     heading: string;
@@ -80,25 +81,24 @@ export interface DesignSystemData {
   borders: { name: string; width: string; style: string; color: string }[];
   grid: GridConfig;
   iconSizes: IconSize[];
+  iconSystem?: {
+    sizes: { name: string; value: string }[];
+    strokeWidth: string;
+    gridSize: string;
+    cornerRadius: string;
+    recommendedLibraries: string[];
+  };
+  motionTokens?: {
+    easingCurves: { name: string; value: string; description: string }[];
+    durations: { name: string; value: string; useCase: string }[];
+    animations: { name: string; keyframes: string; duration: string; easing: string }[];
+  };
   componentSpecs: ComponentSpec[];
   accessibility: AccessibilitySpec;
   autoLayoutRules: AutoLayoutRule[];
   figmaFileStructure: string[];
   tokenNaming: { category: string; examples: string[] }[];
-  components: {
-    buttonHtml: string;
-    buttonCss: string;
-    cardHtml: string;
-    cardCss: string;
-    inputHtml: string;
-    inputCss: string;
-    badgeHtml: string;
-    badgeCss: string;
-    alertHtml: string;
-    alertCss: string;
-    avatarHtml: string;
-    avatarCss: string;
-  };
+  components: Record<string, string>;
 }
 
 // Default values for all new fields
