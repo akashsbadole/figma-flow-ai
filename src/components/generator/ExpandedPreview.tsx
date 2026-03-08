@@ -115,18 +115,11 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   };
 
   const copyToFigma = async () => {
+    const svgContent = variant.svg || `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${deviceWidth} ${deviceHeight}" width="${deviceWidth}" height="${deviceHeight}"><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#888">No SVG available</text></svg>`;
+    
     try {
-      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${deviceWidth}" height="${deviceHeight}">
-  <foreignObject width="100%" height="100%">
-    <div xmlns="http://www.w3.org/1999/xhtml">
-      <style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>
-      ${editedHtml}
-    </div>
-  </foreignObject>
-</svg>`;
-
-      const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
-      const htmlBlob = new Blob([svgString], { type: "text/html" });
+      const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
+      const htmlBlob = new Blob([svgContent], { type: "text/html" });
 
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -139,8 +132,7 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
       toast({ title: "Design copied as SVG!", description: "Paste into Figma — elements are editable" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      const svgFallback = `<svg xmlns="http://www.w3.org/2000/svg" width="${deviceWidth}" height="${deviceHeight}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}</div></foreignObject></svg>`;
-      await navigator.clipboard.writeText(svgFallback);
+      await navigator.clipboard.writeText(svgContent);
       setCopied(true);
       toast({ title: "SVG copied as text", description: "Paste into Figma or save as .svg file" });
       setTimeout(() => setCopied(false), 2000);
