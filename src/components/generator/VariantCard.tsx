@@ -199,6 +199,15 @@ export function VariantCard({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); copyAsReact(); }}
+            title="Copy as React component"
+          >
+            <Braces className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
             onClick={(e) => { e.stopPropagation(); onExpand(); }}
             title="Expand preview"
           >

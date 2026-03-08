@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize, FileDown } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { htmlCssToReactComponent } from "@/lib/export-utils";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
