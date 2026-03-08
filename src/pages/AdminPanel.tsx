@@ -77,10 +77,19 @@ const AdminPanel = () => {
       .from("user_subscriptions")
       .select("*");
 
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("*")
+      .eq("role", "admin");
+
+    const adminSet = new Set((roles as any[] || []).map((r: any) => r.user_id));
+    setAdminIds(adminSet);
+
     const subsMap = new Map((subs as any[] || []).map((s: any) => [s.user_id, s]));
     const enriched = (profiles as any[] || []).map((p: any) => ({
       ...p,
       subscription: subsMap.get(p.user_id),
+      isAdmin: adminSet.has(p.user_id),
     }));
 
     setUsers(enriched);
