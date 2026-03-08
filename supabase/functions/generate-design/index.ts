@@ -41,7 +41,11 @@ Keep the same viewport size: ${device.width}x${device.height}px. Only modify wha
 
 ${referenceImage ? "The user has provided a reference image. Use it as visual inspiration for the design style, colors, and layout approach." : ""}
 
-For each variant, generate clean, modern HTML and CSS. Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
+For each variant, generate:
+1. Clean, modern HTML and CSS for a complete self-contained screen
+2. A native SVG version of the same design using pure SVG elements (rect, text, circle, path, g, etc.) — NO foreignObject, NO embedded HTML. This SVG is for pasting into Figma as editable vector objects.
+
+Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
 
 IMPORTANT RULES:
 - Generate exactly ${variantCount} variants
@@ -50,7 +54,10 @@ IMPORTANT RULES:
 - Use modern CSS: gradients, shadows, rounded corners, good typography
 - Each variant must have a cohesive but DIFFERENT color palette
 - Add realistic placeholder content (text, icons as unicode/emoji)
-- Make each variant visually distinct and polished`;
+- Make each variant visually distinct and polished
+- The SVG must be a complete standalone SVG with viewBox="0 0 ${device.width} ${device.height}" using native SVG elements only (text, rect, circle, line, path, g, linearGradient, etc.)
+- The SVG should visually match the HTML version as closely as possible
+- In SVG, use <text> for all text content, <rect> for boxes/cards/buttons, rounded corners via rx/ry attributes`;
     }
 
     // Build messages
