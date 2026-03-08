@@ -267,7 +267,8 @@ const AdminPanel = () => {
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/30">
                     <th className="text-left p-3 font-medium">User</th>
-                    <th className="text-left p-3 font-medium">Plan</th>
+                     <th className="text-left p-3 font-medium">Role</th>
+                     <th className="text-left p-3 font-medium">Plan</th>
                     <th className="text-left p-3 font-medium">Usage</th>
                     <th className="text-left p-3 font-medium">Status</th>
                     <th className="text-left p-3 font-medium">Joined</th>
