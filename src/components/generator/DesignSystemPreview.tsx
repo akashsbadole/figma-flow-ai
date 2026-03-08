@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Palette, Copy, Check, Download, Grid3X3, Type, Move, Layers,
-  Zap, Monitor, Accessibility, FolderTree, MousePointerClick, Eye, Code
+  Zap, Monitor, Accessibility, FolderTree, MousePointerClick, Eye, Code,
+  Moon, Box, Play
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
@@ -12,6 +13,7 @@ import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
 interface DesignSystemData {
   name: string;
   colors: Record<string, string>;
+  darkModeColors?: Record<string, string>;
   typography: { heading: string; body: string; mono: string; scale?: any[]; weights?: any[] };
   spacing: { name: string; value: string }[];
   borderRadius: { name: string; value: string }[];
@@ -22,6 +24,18 @@ interface DesignSystemData {
   zIndex?: { name: string; value: number }[];
   transitions?: { name: string; duration: string; easing: string }[];
   borders?: { name: string; width: string; style: string; color: string }[];
+  iconSystem?: {
+    sizes: { name: string; value: string }[];
+    strokeWidth: string;
+    gridSize: string;
+    cornerRadius: string;
+    recommendedLibraries: string[];
+  };
+  motionTokens?: {
+    easingCurves: { name: string; value: string; description: string }[];
+    durations: { name: string; value: string; useCase: string }[];
+    animations: { name: string; keyframes: string; duration: string; easing: string }[];
+  };
   components?: Record<string, string>;
   [key: string]: any;
 }
@@ -80,6 +94,7 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
   };
 
   const colorEntries = Object.entries(data.colors || {});
+  const darkColorEntries = Object.entries(data.darkModeColors || {});
   const spacingItems = data.spacing || [];
   const radiusItems = data.borderRadius || [];
   const shadowItems = data.shadows || [];
@@ -91,8 +106,10 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
   const borders = data.borders || [];
   const typeScale = data.typography?.scale || [];
   const typeWeights = data.typography?.weights || [];
+  const iconSystem = data.iconSystem;
+  const motionTokens = data.motionTokens;
 
-  // Component previews
+  // Component previews - extended list
   const componentEntries = data.components ? [
     { key: "button", label: "Button", html: data.components.buttonHtml, css: data.components.buttonCss },
     { key: "card", label: "Card", html: data.components.cardHtml, css: data.components.cardCss },
@@ -100,14 +117,20 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
     { key: "badge", label: "Badge", html: data.components.badgeHtml, css: data.components.badgeCss },
     { key: "alert", label: "Alert", html: data.components.alertHtml, css: data.components.alertCss },
     { key: "avatar", label: "Avatar", html: data.components.avatarHtml, css: data.components.avatarCss },
+    { key: "tabs", label: "Tabs", html: data.components.tabsHtml, css: data.components.tabsCss },
+    { key: "modal", label: "Modal", html: data.components.modalHtml, css: data.components.modalCss },
+    { key: "tooltip", label: "Tooltip", html: data.components.tooltipHtml, css: data.components.tooltipCss },
+    { key: "navbar", label: "Navbar", html: data.components.navbarHtml, css: data.components.navbarCss },
+    { key: "toggle", label: "Toggle", html: data.components.toggleHtml, css: data.components.toggleCss },
+    { key: "dropdown", label: "Dropdown", html: data.components.dropdownHtml, css: data.components.dropdownCss },
   ].filter(c => c.html && c.css) : [];
 
   const handleCopyForFigma = () => copyDesignSystemForFigma(data, toast);
 
-
   const generateFigmaTokensJSON = () => {
-    const tokens: any = { global: { colors: {}, typography: {}, spacing: {}, borderRadius: {}, shadows: {}, opacity: {}, zIndex: {}, breakpoints: {} } };
+    const tokens: any = { global: { colors: {}, darkColors: {}, typography: {}, spacing: {}, borderRadius: {}, shadows: {}, opacity: {}, zIndex: {}, breakpoints: {}, iconSizes: {}, motionDurations: {}, easingCurves: {} } };
     colorEntries.forEach(([k, v]) => { tokens.global.colors[k] = { value: v, type: "color" }; });
+    darkColorEntries.forEach(([k, v]) => { tokens.global.darkColors[k] = { value: v, type: "color" }; });
     typeScale.forEach((s: any) => { tokens.global.typography[s.name] = { value: { fontSize: s.size, lineHeight: s.lineHeight, letterSpacing: s.letterSpacing, fontFamily: data.typography.heading }, type: "typography" }; });
     spacingItems.forEach((s) => { tokens.global.spacing[s.name] = { value: s.value, type: "spacing" }; });
     radiusItems.forEach((r) => { tokens.global.borderRadius[r.name] = { value: r.value, type: "borderRadius" }; });
@@ -115,12 +138,17 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
     opacityItems.forEach((o) => { tokens.global.opacity[o.name] = { value: o.value, type: "opacity" }; });
     zIndexItems.forEach((z) => { tokens.global.zIndex[z.name] = { value: z.value, type: "other" }; });
     breakpoints.forEach((b) => { tokens.global.breakpoints[b.name] = { value: b.value, type: "dimension" }; });
+    if (iconSystem) iconSystem.sizes.forEach((ic) => { tokens.global.iconSizes[ic.name] = { value: ic.value, type: "sizing" }; });
+    if (motionTokens) {
+      motionTokens.durations.forEach((d) => { tokens.global.motionDurations[d.name] = { value: d.value, type: "duration" }; });
+      motionTokens.easingCurves.forEach((e) => { tokens.global.easingCurves[e.name] = { value: e.value, type: "other" }; });
+    }
     return JSON.stringify(tokens, null, 2);
   };
 
   const generateCSSVars = () => {
     let css = `/* ${data.name} Design System */\n:root {\n`;
-    css += `  /* Colors */\n`;
+    css += `  /* Colors - Light Mode */\n`;
     colorEntries.forEach(([k, v]) => { css += `  --color-${k.replace(/([A-Z])/g, "-$1").toLowerCase()}: ${v};\n`; });
     css += `\n  /* Typography */\n  --font-heading: '${data.typography.heading}', sans-serif;\n  --font-body: '${data.typography.body}', sans-serif;\n  --font-mono: '${data.typography.mono}', monospace;\n`;
     typeScale.forEach((s: any) => { css += `  --font-size-${s.name}: ${s.size};\n  --line-height-${s.name}: ${s.lineHeight};\n`; });
@@ -131,8 +159,19 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
     css += `\n  /* Shadows */\n`;
     shadowItems.forEach((s) => { css += `  --shadow-${s.name}: ${s.value};\n`; });
     if (gradients.length) { css += `\n  /* Gradients */\n`; gradients.forEach((g) => { css += `  --gradient-${g.name}: ${g.value};\n`; }); }
+    if (iconSystem) { css += `\n  /* Icon System */\n  --icon-stroke: ${iconSystem.strokeWidth};\n  --icon-grid: ${iconSystem.gridSize};\n`; iconSystem.sizes.forEach((ic) => { css += `  --icon-${ic.name}: ${ic.value};\n`; }); }
+    if (motionTokens) {
+      css += `\n  /* Motion */\n`;
+      motionTokens.durations.forEach((d) => { css += `  --duration-${d.name}: ${d.value};\n`; });
+      motionTokens.easingCurves.forEach((e) => { css += `  --ease-${e.name}: ${e.value};\n`; });
+    }
     if (transitions.length) { css += `\n  /* Transitions */\n`; transitions.forEach((t) => { css += `  --transition-${t.name}: ${t.duration} ${t.easing};\n`; }); }
-    css += `}`;
+    css += `}\n`;
+    if (darkColorEntries.length > 0) {
+      css += `\n/* Dark Mode */\n[data-theme="dark"], .dark {\n`;
+      darkColorEntries.forEach(([k, v]) => { css += `  --color-${k.replace(/([A-Z])/g, "-$1").toLowerCase()}: ${v};\n`; });
+      css += `}\n`;
+    }
     return css;
   };
 
@@ -167,7 +206,7 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
           <div>
             <h3 className="text-lg font-semibold">{data.name}</h3>
             <p className="text-[10px] text-muted-foreground">
-              {colorEntries.length} colors · {typeScale.length} type sizes · {spacingItems.length} spacing tokens
+              {colorEntries.length} colors · {darkColorEntries.length > 0 ? "dark mode · " : ""}{typeScale.length} type sizes · {spacingItems.length} spacing · {componentEntries.length} components
             </p>
           </div>
         </div>
@@ -255,9 +294,9 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         )}
       </Card>
 
-      {/* 4. Colors */}
+      {/* 4. Colors - Light Mode */}
       <Card className="p-4 border-border/50">
-        <SectionHeader icon={Palette} title="4. Color System" count={colorEntries.length} />
+        <SectionHeader icon={Palette} title="4. Color System (Light)" count={colorEntries.length} />
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
           {colorEntries.map(([name, hex]) => (
             <button
@@ -274,10 +313,31 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </div>
       </Card>
 
-      {/* 5. Border Radius */}
+      {/* 5. Colors - Dark Mode */}
+      {darkColorEntries.length > 0 && (
+        <Card className="p-4 border-border/50 bg-muted/20">
+          <SectionHeader icon={Moon} title="5. Color System (Dark Mode)" count={darkColorEntries.length} />
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+            {darkColorEntries.map(([name, hex]) => (
+              <button
+                key={`dark-${name}`}
+                className="text-center group cursor-pointer"
+                onClick={() => copyText(hex, `dark-color-${name}`)}
+                title={`dark/${name}: ${hex}`}
+              >
+                <div className="w-full aspect-square rounded-lg border border-border/50 shadow-sm transition-transform group-hover:scale-105" style={{ backgroundColor: hex }} />
+                <p className="text-[9px] text-muted-foreground mt-1 truncate">{name}</p>
+                <p className="text-[8px] font-mono text-muted-foreground/70">{hex}</p>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 6. Border Radius */}
       {radiusItems.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Layers} title="5. Border Radius" count={radiusItems.length} />
+          <SectionHeader icon={Layers} title="6. Border Radius" count={radiusItems.length} />
           <div className="flex flex-wrap gap-3">
             {radiusItems.map((r) => (
               <div key={r.name} className="text-center">
@@ -290,10 +350,10 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 6. Shadows */}
+      {/* 7. Shadows */}
       {shadowItems.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Layers} title="6. Shadow System" count={shadowItems.length} />
+          <SectionHeader icon={Layers} title="7. Shadow System" count={shadowItems.length} />
           <div className="flex flex-wrap gap-4">
             {shadowItems.map((s) => (
               <div key={s.name} className="text-center">
@@ -305,10 +365,44 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 7. Gradients */}
+      {/* 8. Icon System */}
+      {iconSystem && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Box} title="8. Icon System" count={iconSystem.sizes.length} />
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-4 items-end">
+              {iconSystem.sizes.map((ic) => (
+                <div key={ic.name} className="text-center">
+                  <div className="flex items-center justify-center mx-auto" style={{ width: ic.value, height: ic.value }}>
+                    <svg width={ic.value} height={ic.value} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={parseFloat(iconSystem.strokeWidth) || 1.5} className="text-primary">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] font-medium mt-1">{ic.name}</p>
+                  <p className="text-[9px] font-mono text-muted-foreground">{ic.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t border-border/50 pt-3">
+              <span>Stroke: <strong className="text-foreground">{iconSystem.strokeWidth}</strong></span>
+              <span>Grid: <strong className="text-foreground">{iconSystem.gridSize}</strong></span>
+              <span>Corner: <strong className="text-foreground">{iconSystem.cornerRadius}</strong></span>
+            </div>
+            {iconSystem.recommendedLibraries?.length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-2 text-xs text-muted-foreground">
+                Recommended: {iconSystem.recommendedLibraries.map((lib, i) => (
+                  <span key={lib} className="font-medium text-foreground">{lib}{i < iconSystem.recommendedLibraries.length - 1 ? " · " : ""}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* 9. Gradients */}
       {gradients.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Palette} title="7. Gradients" count={gradients.length} />
+          <SectionHeader icon={Palette} title="9. Gradients" count={gradients.length} />
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {gradients.map((g) => (
               <div key={g.name} className="text-center">
@@ -320,10 +414,63 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 8. Breakpoints */}
+      {/* 10. Motion / Animation Tokens */}
+      {motionTokens && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Play} title="10. Motion & Animation" />
+          <div className="space-y-4">
+            {/* Easing Curves */}
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-2 font-medium">Easing Curves</p>
+              <div className="space-y-2">
+                {motionTokens.easingCurves.map((e) => (
+                  <div key={e.name} className="flex items-center gap-3">
+                    <span className="text-xs font-medium w-20">{e.name}</span>
+                    <div className="group/ease relative flex-1 h-6 bg-muted/50 rounded overflow-hidden cursor-pointer">
+                      <div
+                        className="absolute left-0 top-0 h-full w-6 rounded bg-primary group-hover/ease:w-full"
+                        style={{ transition: `width 600ms ${e.value}` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-mono text-muted-foreground max-w-[180px] truncate">{e.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Durations */}
+            <div className="border-t border-border/50 pt-3">
+              <p className="text-[10px] text-muted-foreground mb-2 font-medium">Duration Scale</p>
+              <div className="flex flex-wrap gap-2">
+                {motionTokens.durations.map((d) => (
+                  <div key={d.name} className="bg-muted rounded-lg px-3 py-2 text-center">
+                    <p className="text-xs font-medium">{d.name}</p>
+                    <p className="text-sm font-mono font-bold text-primary">{d.value}</p>
+                    <p className="text-[9px] text-muted-foreground">{d.useCase}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Named Animations */}
+            <div className="border-t border-border/50 pt-3">
+              <p className="text-[10px] text-muted-foreground mb-2 font-medium">Named Animations</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {motionTokens.animations.map((a) => (
+                  <div key={a.name} className="bg-muted/50 rounded-lg p-2">
+                    <p className="text-xs font-medium">{a.name}</p>
+                    <p className="text-[9px] text-muted-foreground">{a.duration} · {a.easing}</p>
+                    <p className="text-[8px] font-mono text-muted-foreground/70 truncate mt-0.5">{a.keyframes}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 11. Breakpoints */}
       {breakpoints.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Monitor} title="8. Breakpoints" count={breakpoints.length} />
+          <SectionHeader icon={Monitor} title="11. Breakpoints" count={breakpoints.length} />
           <div className="flex flex-wrap gap-2">
             {breakpoints.map((b) => (
               <div key={b.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
@@ -335,41 +482,42 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 9. Opacity */}
-      {opacityItems.length > 0 && (
-        <Card className="p-4 border-border/50">
-          <SectionHeader icon={Eye} title="9. Opacity Scale" count={opacityItems.length} />
-          <div className="flex flex-wrap gap-3">
-            {opacityItems.map((o) => (
-              <div key={o.name} className="text-center">
-                <div className="w-10 h-10 rounded bg-primary" style={{ opacity: o.value }} />
-                <p className="text-[10px] text-muted-foreground mt-1">{o.name}</p>
-                <p className="text-[9px] font-mono text-muted-foreground/60">{o.value}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+      {/* 12. Opacity & Z-Index */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {opacityItems.length > 0 && (
+          <Card className="p-4 border-border/50">
+            <SectionHeader icon={Eye} title="12. Opacity Scale" count={opacityItems.length} />
+            <div className="flex flex-wrap gap-3">
+              {opacityItems.map((o) => (
+                <div key={o.name} className="text-center">
+                  <div className="w-10 h-10 rounded bg-primary" style={{ opacity: o.value }} />
+                  <p className="text-[10px] text-muted-foreground mt-1">{o.name}</p>
+                  <p className="text-[9px] font-mono text-muted-foreground/60">{o.value}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
-      {/* 10. Z-Index */}
-      {zIndexItems.length > 0 && (
-        <Card className="p-4 border-border/50">
-          <SectionHeader icon={Layers} title="10. Z-Index Layers" count={zIndexItems.length} />
-          <div className="flex flex-wrap gap-2">
-            {zIndexItems.map((z) => (
-              <div key={z.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
-                <span className="text-muted-foreground">{z.name}</span>
-                <span className="font-mono font-semibold">{z.value}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+        {zIndexItems.length > 0 && (
+          <Card className="p-4 border-border/50">
+            <SectionHeader icon={Layers} title="Z-Index Layers" count={zIndexItems.length} />
+            <div className="flex flex-wrap gap-2">
+              {zIndexItems.map((z) => (
+                <div key={z.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
+                  <span className="text-muted-foreground">{z.name}</span>
+                  <span className="font-mono font-semibold">{z.value}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
 
-      {/* 11. Transitions / Animations */}
+      {/* 13. Transitions */}
       {transitions.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Zap} title="11. Animation / Transitions" count={transitions.length} />
+          <SectionHeader icon={Zap} title="13. Transitions" count={transitions.length} />
           <div className="space-y-2">
             {transitions.map((t) => (
               <div key={t.name} className="flex items-center gap-3">
@@ -387,10 +535,10 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 12. Borders */}
+      {/* 14. Borders */}
       {borders.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={Layers} title="12. Borders" count={borders.length} />
+          <SectionHeader icon={Layers} title="14. Borders" count={borders.length} />
           <div className="space-y-2">
             {borders.map((b) => (
               <div key={b.name} className="flex items-center gap-3">
@@ -403,10 +551,10 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
         </Card>
       )}
 
-      {/* 13. Components */}
+      {/* 15. Components */}
       {componentEntries.length > 0 && (
         <Card className="p-4 border-border/50">
-          <SectionHeader icon={MousePointerClick} title="13. Components" count={componentEntries.length} />
+          <SectionHeader icon={MousePointerClick} title="15. Components" count={componentEntries.length} />
           <Tabs defaultValue={componentEntries[0]?.key} className="space-y-3">
             <TabsList className="bg-muted/50 flex-wrap h-auto gap-1">
               {componentEntries.map((c) => (
@@ -419,7 +567,7 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
                   <iframe
                     srcDoc={`<style>*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}body{padding:16px;}${c.css}</style>${c.html}`}
                     className="w-full border-0 rounded"
-                    style={{ height: 120 }}
+                    style={{ height: 140 }}
                     title={c.label}
                     sandbox="allow-scripts"
                   />
