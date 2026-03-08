@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Crown, Check, Sparkles, Zap, Shield, Infinity } from "lucide-react";
+import { Crown, Check, Sparkles, Shield, Infinity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -22,7 +20,6 @@ const plans = [
       "HTML + CSS export",
       "Community support",
     ],
-    limits: { generations: 5 },
     icon: Sparkles,
     popular: false,
   },
@@ -41,7 +38,6 @@ const plans = [
       "Generation history",
       "All template categories",
     ],
-    limits: { generations: 999 },
     icon: Crown,
     popular: true,
   },
@@ -49,8 +45,6 @@ const plans = [
 
 const Pricing = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [upgrading, setUpgrading] = useState(false);
 
   const { data: subscription } = useQuery({
     queryKey: ["subscription", user?.id],
@@ -68,27 +62,6 @@ const Pricing = () => {
 
   const currentPlan = subscription?.plan || "free";
 
-  const handleUpgrade = async (planId: string) => {
-    if (!user) return;
-    if (planId === currentPlan) return;
-
-    setUpgrading(true);
-    try {
-      const newLimit = planId === "pro" ? 999 : 5;
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .update({ plan: planId, generations_limit: newLimit })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-      toast({ title: `Plan updated to ${planId === "pro" ? "Pro" : "Free"}!` });
-    } catch (err: any) {
-      toast({ title: "Failed to update plan", description: err.message, variant: "destructive" });
-    } finally {
-      setUpgrading(false);
-    }
-  };
-
   return (
     <AppLayout>
       <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
@@ -99,12 +72,7 @@ const Pricing = () => {
 
         <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {plans.map((plan, i) => (
-            <motion.div
-              key={plan.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-            >
+            <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <Card className={`relative overflow-hidden border-border/50 ${plan.popular ? "ring-2 ring-primary shadow-lg" : ""}`}>
                 {plan.popular && (
                   <div className="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold bg-primary text-primary-foreground rounded-bl-lg">
@@ -133,10 +101,13 @@ const Pricing = () => {
                   <Button
                     className={`w-full ${plan.popular ? "gradient-primary text-primary-foreground" : ""}`}
                     variant={plan.popular ? "default" : "outline"}
-                    disabled={currentPlan === plan.id || upgrading}
-                    onClick={() => handleUpgrade(plan.id)}
+                    disabled={currentPlan === plan.id || plan.id === "pro"}
                   >
-                    {currentPlan === plan.id ? "Current Plan" : plan.popular ? "Upgrade to Pro" : "Downgrade to Free"}
+                    {currentPlan === plan.id
+                      ? "Current Plan"
+                      : plan.id === "pro"
+                      ? "Coming Soon"
+                      : "Free Plan"}
                   </Button>
                 </CardContent>
               </Card>
@@ -144,7 +115,6 @@ const Pricing = () => {
           ))}
         </div>
 
-        {/* Current subscription info */}
         {subscription && (
           <Card className="border-border/50 max-w-3xl mx-auto">
             <CardContent className="p-4 flex items-center justify-between">
