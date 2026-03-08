@@ -296,6 +296,7 @@ const Generator = () => {
                       </motion.div>
                     ))}
                   </motion.div>
+                  </>
                 )}
               </TabsContent>
 
