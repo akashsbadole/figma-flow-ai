@@ -1,5 +1,12 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Loader2, Palette } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Loader2, Palette, Copy, Check, Download, Grid3X3, Type, Move, Layers,
+  Zap, Monitor, Accessibility, FolderTree, MousePointerClick, Eye, Code
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface DesignSystemData {
   name: string;
@@ -8,6 +15,13 @@ interface DesignSystemData {
   spacing: { name: string; value: string }[];
   borderRadius: { name: string; value: string }[];
   shadows: { name: string; value: string }[];
+  gradients?: { name: string; value: string }[];
+  breakpoints?: { name: string; value: string }[];
+  opacity?: { name: string; value: number }[];
+  zIndex?: { name: string; value: number }[];
+  transitions?: { name: string; duration: string; easing: string }[];
+  borders?: { name: string; width: string; style: string; color: string }[];
+  components?: Record<string, string>;
   [key: string]: any;
 }
 
@@ -17,7 +31,20 @@ interface DesignSystemPreviewProps {
   error?: string | null;
 }
 
+function SectionHeader({ icon: Icon, title, count }: { icon: any; title: string; count?: number }) {
+  return (
+    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-foreground">
+      <Icon className="h-4 w-4 text-primary" />
+      {title}
+      {count !== undefined && <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{count}</span>}
+    </h4>
+  );
+}
+
 export function DesignSystemPreview({ data, loading, error }: DesignSystemPreviewProps) {
+  const { toast } = useToast();
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -44,93 +71,303 @@ export function DesignSystemPreview({ data, loading, error }: DesignSystemPrevie
     );
   }
 
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast({ title: "Copied!" });
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   const colorEntries = Object.entries(data.colors || {});
   const spacingItems = data.spacing || [];
   const radiusItems = data.borderRadius || [];
   const shadowItems = data.shadows || [];
+  const gradients = data.gradients || [];
+  const breakpoints = data.breakpoints || [];
+  const opacityItems = data.opacity || [];
+  const zIndexItems = data.zIndex || [];
+  const transitions = data.transitions || [];
+  const borders = data.borders || [];
+  const typeScale = data.typography?.scale || [];
+  const typeWeights = data.typography?.weights || [];
+
+  // Component previews
+  const componentEntries = data.components ? [
+    { key: "button", label: "Button", html: data.components.buttonHtml, css: data.components.buttonCss },
+    { key: "card", label: "Card", html: data.components.cardHtml, css: data.components.cardCss },
+    { key: "input", label: "Input", html: data.components.inputHtml, css: data.components.inputCss },
+    { key: "badge", label: "Badge", html: data.components.badgeHtml, css: data.components.badgeCss },
+    { key: "alert", label: "Alert", html: data.components.alertHtml, css: data.components.alertCss },
+    { key: "avatar", label: "Avatar", html: data.components.avatarHtml, css: data.components.avatarCss },
+  ].filter(c => c.html && c.css) : [];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold mb-1">{data.name}</h3>
-        <p className="text-xs text-muted-foreground">Auto-generated design tokens</p>
-      </div>
-
-      {/* Colors */}
-      <div>
-        <h4 className="text-sm font-medium mb-3">Colors</h4>
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-          {colorEntries.map(([name, hex]) => (
-            <div key={name} className="text-center">
-              <div
-                className="w-full aspect-square rounded-lg border border-border/50 shadow-sm"
-                style={{ backgroundColor: hex }}
-              />
-              <p className="text-[10px] text-muted-foreground mt-1 truncate">{name}</p>
-            </div>
-          ))}
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: data.colors?.primary || "hsl(var(--primary))" }}>
+          <span className="text-lg font-bold text-primary-foreground">{data.name?.charAt(0) || "D"}</span>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">{data.name}</h3>
+          <p className="text-[10px] text-muted-foreground">
+            {colorEntries.length} colors · {typeScale.length} type sizes · {spacingItems.length} spacing tokens
+          </p>
         </div>
       </div>
 
-      {/* Typography */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">Typography</h4>
-        <div className="space-y-1 text-sm">
+      {/* 1. Layout / Grid */}
+      <Card className="p-4 border-border/50">
+        <SectionHeader icon={Grid3X3} title="1. Layout System" />
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Desktop", cols: 12, gutter: "24px", margin: "120px" },
+            { label: "Tablet", cols: 8, gutter: "16px", margin: "64px" },
+            { label: "Mobile", cols: 4, gutter: "16px", margin: "16px" },
+          ].map((g) => (
+            <div key={g.label} className="bg-muted/50 rounded-lg p-3 text-center">
+              <p className="text-xs font-medium mb-1">{g.label}</p>
+              <p className="text-lg font-bold text-primary">{g.cols}</p>
+              <p className="text-[10px] text-muted-foreground">columns</p>
+              <div className="flex justify-center gap-2 mt-1 text-[9px] text-muted-foreground">
+                <span>G: {g.gutter}</span>
+                <span>M: {g.margin}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* 2. Spacing */}
+      {spacingItems.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Move} title="2. Spacing System" count={spacingItems.length} />
+          <div className="space-y-1.5">
+            {spacingItems.map((s) => (
+              <div key={s.name} className="flex items-center gap-3">
+                <span className="text-[10px] font-mono text-muted-foreground w-8">{s.name}</span>
+                <div className="h-3 rounded bg-primary/30" style={{ width: s.value }} />
+                <span className="text-[10px] text-muted-foreground">{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 3. Typography */}
+      <Card className="p-4 border-border/50">
+        <SectionHeader icon={Type} title="3. Typography" />
+        <div className="space-y-2 text-sm mb-3">
           <p><span className="text-muted-foreground">Heading:</span> {data.typography.heading}</p>
           <p><span className="text-muted-foreground">Body:</span> {data.typography.body}</p>
           <p><span className="text-muted-foreground">Mono:</span> {data.typography.mono}</p>
         </div>
-      </div>
-
-      {/* Spacing */}
-      {spacingItems.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2">Spacing</h4>
-          <div className="flex flex-wrap gap-2">
-            {spacingItems.map((s) => (
-              <div key={s.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
-                <span className="font-mono text-muted-foreground">{s.name}</span>
-                <span>{s.value}</span>
+        {typeScale.length > 0 && (
+          <div className="space-y-1 border-t border-border/50 pt-3">
+            <p className="text-[10px] text-muted-foreground mb-2">Type Scale</p>
+            {typeScale.map((t: any) => (
+              <div key={t.name} className="flex items-baseline gap-3">
+                <span className="text-[10px] font-mono text-muted-foreground w-10">{t.name}</span>
+                <span style={{ fontSize: t.size, lineHeight: t.lineHeight }} className="truncate">{t.size}</span>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+        {typeWeights.length > 0 && (
+          <div className="flex flex-wrap gap-2 border-t border-border/50 pt-3 mt-3">
+            {typeWeights.map((w: any) => (
+              <span key={w.name} className="text-xs bg-muted px-2 py-1 rounded" style={{ fontWeight: w.value }}>
+                {w.name} ({w.value})
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
 
-      {/* Border Radius */}
+      {/* 4. Colors */}
+      <Card className="p-4 border-border/50">
+        <SectionHeader icon={Palette} title="4. Color System" count={colorEntries.length} />
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+          {colorEntries.map(([name, hex]) => (
+            <button
+              key={name}
+              className="text-center group cursor-pointer"
+              onClick={() => copyText(hex, `color-${name}`)}
+              title={`${name}: ${hex}`}
+            >
+              <div className="w-full aspect-square rounded-lg border border-border/50 shadow-sm transition-transform group-hover:scale-105" style={{ backgroundColor: hex }} />
+              <p className="text-[9px] text-muted-foreground mt-1 truncate">{name}</p>
+              <p className="text-[8px] font-mono text-muted-foreground/70">{hex}</p>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* 5. Border Radius */}
       {radiusItems.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2">Border Radius</h4>
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Layers} title="5. Border Radius" count={radiusItems.length} />
           <div className="flex flex-wrap gap-3">
             {radiusItems.map((r) => (
               <div key={r.name} className="text-center">
-                <div
-                  className="w-10 h-10 bg-primary/20 border border-primary/40"
-                  style={{ borderRadius: r.value }}
-                />
+                <div className="w-12 h-12 bg-primary/20 border-2 border-primary/40" style={{ borderRadius: r.value }} />
                 <p className="text-[10px] text-muted-foreground mt-1">{r.name}</p>
+                <p className="text-[9px] font-mono text-muted-foreground/60">{r.value}</p>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Shadows */}
+      {/* 6. Shadows */}
       {shadowItems.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2">Shadows</h4>
-          <div className="flex flex-wrap gap-3">
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Layers} title="6. Shadow System" count={shadowItems.length} />
+          <div className="flex flex-wrap gap-4">
             {shadowItems.map((s) => (
               <div key={s.name} className="text-center">
-                <div
-                  className="w-14 h-14 bg-card rounded-lg"
-                  style={{ boxShadow: s.value }}
-                />
+                <div className="w-16 h-16 bg-card rounded-lg border border-border/30" style={{ boxShadow: s.value }} />
                 <p className="text-[10px] text-muted-foreground mt-1">{s.name}</p>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
+      )}
+
+      {/* 7. Gradients */}
+      {gradients.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Palette} title="7. Gradients" count={gradients.length} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {gradients.map((g) => (
+              <div key={g.name} className="text-center">
+                <div className="h-12 rounded-lg" style={{ background: g.value }} />
+                <p className="text-[10px] text-muted-foreground mt-1">{g.name}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 8. Breakpoints */}
+      {breakpoints.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Monitor} title="8. Breakpoints" count={breakpoints.length} />
+          <div className="flex flex-wrap gap-2">
+            {breakpoints.map((b) => (
+              <div key={b.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
+                <span className="font-mono text-muted-foreground">{b.name}</span>
+                <span className="font-semibold">{b.value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 9. Opacity */}
+      {opacityItems.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Eye} title="9. Opacity Scale" count={opacityItems.length} />
+          <div className="flex flex-wrap gap-3">
+            {opacityItems.map((o) => (
+              <div key={o.name} className="text-center">
+                <div className="w-10 h-10 rounded bg-primary" style={{ opacity: o.value }} />
+                <p className="text-[10px] text-muted-foreground mt-1">{o.name}</p>
+                <p className="text-[9px] font-mono text-muted-foreground/60">{o.value}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 10. Z-Index */}
+      {zIndexItems.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Layers} title="10. Z-Index Layers" count={zIndexItems.length} />
+          <div className="flex flex-wrap gap-2">
+            {zIndexItems.map((z) => (
+              <div key={z.name} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs">
+                <span className="text-muted-foreground">{z.name}</span>
+                <span className="font-mono font-semibold">{z.value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 11. Transitions / Animations */}
+      {transitions.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Zap} title="11. Animation / Transitions" count={transitions.length} />
+          <div className="space-y-2">
+            {transitions.map((t) => (
+              <div key={t.name} className="flex items-center gap-3">
+                <span className="text-xs font-medium w-14">{t.name}</span>
+                <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full"
+                    style={{ width: `${Math.min(parseInt(t.duration) / 5, 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground">{t.duration}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 12. Borders */}
+      {borders.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={Layers} title="12. Borders" count={borders.length} />
+          <div className="space-y-2">
+            {borders.map((b) => (
+              <div key={b.name} className="flex items-center gap-3">
+                <span className="text-xs font-medium w-14">{b.name}</span>
+                <div className="flex-1 rounded" style={{ borderBottom: `${b.width} ${b.style} ${b.color}` }} />
+                <span className="text-[10px] font-mono text-muted-foreground">{b.width} {b.style}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* 13. Components */}
+      {componentEntries.length > 0 && (
+        <Card className="p-4 border-border/50">
+          <SectionHeader icon={MousePointerClick} title="13. Components" count={componentEntries.length} />
+          <Tabs defaultValue={componentEntries[0]?.key} className="space-y-3">
+            <TabsList className="bg-muted/50 flex-wrap h-auto gap-1">
+              {componentEntries.map((c) => (
+                <TabsTrigger key={c.key} value={c.key} className="text-xs">{c.label}</TabsTrigger>
+              ))}
+            </TabsList>
+            {componentEntries.map((c) => (
+              <TabsContent key={c.key} value={c.key} className="mt-0">
+                <div className="bg-muted/30 rounded-lg p-4 mb-2">
+                  <iframe
+                    srcDoc={`<style>*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}body{padding:16px;}${c.css}</style>${c.html}`}
+                    className="w-full border-0 rounded"
+                    style={{ height: 120 }}
+                    title={c.label}
+                    sandbox="allow-scripts"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => copyText(`${c.html}\n\n/* CSS */\n${c.css}`, c.key)}
+                  >
+                    {copiedKey === c.key ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                    Copy
+                  </Button>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </Card>
       )}
     </div>
   );
