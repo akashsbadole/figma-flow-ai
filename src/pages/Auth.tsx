@@ -130,6 +130,47 @@ const Auth = () => {
               <Button type="submit" className="w-full gradient-primary text-primary-foreground" disabled={loading}>
                 {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
               </Button>
+
+              {isLogin && (
+                <div className="w-full space-y-2">
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <span className="relative bg-card px-2 text-xs text-muted-foreground">or</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loading}
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        await signIn("demo@aidesignstudio.com", "demo1234");
+                        navigate("/dashboard");
+                      } catch {
+                        try {
+                          await signUp("demo@aidesignstudio.com", "demo1234", "Demo User");
+                          await signIn("demo@aidesignstudio.com", "demo1234");
+                          navigate("/dashboard");
+                        } catch (err: any) {
+                          toast({ title: "Demo login failed", description: err.message, variant: "destructive" });
+                        }
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Try Demo Account
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    demo@aidesignstudio.com / demo1234
+                  </p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
