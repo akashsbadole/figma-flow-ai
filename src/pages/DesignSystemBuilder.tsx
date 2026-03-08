@@ -22,6 +22,7 @@ import {
   generateStyleDictionary,
 } from "@/lib/design-system-export";
 import { copyDesignSystemForFigma } from "@/lib/figma-svg-export";
+import { useGenerationLimit } from "@/hooks/useGenerationLimit";
 
 export interface GridConfig {
   desktop: { columns: number; gutter: string; margin: string };
