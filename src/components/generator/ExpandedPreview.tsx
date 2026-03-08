@@ -160,6 +160,17 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const downloadSvg = () => {
+    if (!variant.svg) return;
+    const blob = new Blob([variant.svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
