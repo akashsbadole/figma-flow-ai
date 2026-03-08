@@ -88,6 +88,21 @@ const Templates = () => {
     toast({ title: "Downloaded!", description: `${template.name} downloaded as ${format.toUpperCase()}` });
   };
 
+  const copyToFigma = async (template: typeof sampleTemplates[0]) => {
+    const html = `<style>${template.css_code}</style>${template.html_code}`;
+    try {
+      const htmlBlob = new Blob([html], { type: "text/html" });
+      const textBlob = new Blob([html], { type: "text/plain" });
+      await navigator.clipboard.write([
+        new ClipboardItem({ "text/html": htmlBlob, "text/plain": textBlob }),
+      ]);
+      toast({ title: "Copied for Figma!", description: "Paste directly into Figma" });
+    } catch {
+      await navigator.clipboard.writeText(html);
+      toast({ title: "Copied as HTML" });
+    }
+  };
+
   const toggleSave = (id: string) => {
     setSavedIds(prev => {
       const next = new Set(prev);
