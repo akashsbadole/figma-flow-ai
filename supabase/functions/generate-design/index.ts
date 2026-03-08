@@ -41,7 +41,11 @@ Keep the same viewport size: ${device.width}x${device.height}px. Only modify wha
 
 ${referenceImage ? "The user has provided a reference image. Use it as visual inspiration for the design style, colors, and layout approach." : ""}
 
-For each variant, generate clean, modern HTML and CSS. Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
+For each variant, generate:
+1. Clean, modern HTML and CSS for a complete self-contained screen
+2. A native SVG version of the same design using pure SVG elements (rect, text, circle, path, g, etc.) — NO foreignObject, NO embedded HTML. This SVG is for pasting into Figma as editable vector objects.
+
+Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
 
 IMPORTANT RULES:
 - Generate exactly ${variantCount} variants
@@ -50,7 +54,10 @@ IMPORTANT RULES:
 - Use modern CSS: gradients, shadows, rounded corners, good typography
 - Each variant must have a cohesive but DIFFERENT color palette
 - Add realistic placeholder content (text, icons as unicode/emoji)
-- Make each variant visually distinct and polished`;
+- Make each variant visually distinct and polished
+- The SVG must be a complete standalone SVG with viewBox="0 0 ${device.width} ${device.height}" using native SVG elements only (text, rect, circle, line, path, g, linearGradient, etc.)
+- The SVG should visually match the HTML version as closely as possible
+- In SVG, use <text> for all text content, <rect> for boxes/cards/buttons, rounded corners via rx/ry attributes`;
     }
 
     // Build messages
@@ -77,7 +84,8 @@ IMPORTANT RULES:
       variantProperties[`variant_${i}_name`] = { type: "string", description: `Name for variant ${i} (e.g. 'Clean Minimal', 'Bold Gradient')` };
       variantProperties[`variant_${i}_html`] = { type: "string", description: `Complete HTML markup for variant ${i}. Root container must be ${device.width}x${device.height}px.` };
       variantProperties[`variant_${i}_css`] = { type: "string", description: `CSS styles for variant ${i}. Use modern CSS with gradients, shadows, good typography.` };
-      requiredFields.push(`variant_${i}_name`, `variant_${i}_html`, `variant_${i}_css`);
+      variantProperties[`variant_${i}_svg`] = { type: "string", description: `Native SVG version of variant ${i} for Figma. Must use only native SVG elements (rect, text, circle, path, g, linearGradient, etc). NO foreignObject. Include viewBox="0 0 ${device.width} ${device.height}". Must visually match the HTML version.` };
+      requiredFields.push(`variant_${i}_name`, `variant_${i}_html`, `variant_${i}_css`, `variant_${i}_svg`);
     }
 
     const codeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -148,12 +156,14 @@ IMPORTANT RULES:
       const name = args[`variant_${i}_name`];
       const html = args[`variant_${i}_html`];
       const css = args[`variant_${i}_css`];
+      const svg = args[`variant_${i}_svg`] || "";
       if (html && css) {
         variants.push({
           id: crypto.randomUUID(),
           name: name || `Variant ${i}`,
           html,
           css,
+          svg,
         });
       }
     }
