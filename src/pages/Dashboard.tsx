@@ -14,6 +14,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<any[]>([]);
   const [recentDesigns, setRecentDesigns] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [historyCount, setHistoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
