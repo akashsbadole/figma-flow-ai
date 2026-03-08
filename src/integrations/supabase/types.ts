@@ -326,6 +326,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_generation_usage: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"

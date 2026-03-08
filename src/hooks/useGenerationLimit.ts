@@ -24,16 +24,11 @@ export function useGenerationLimit() {
       if (error) throw error;
 
       if (!sub) {
-        // No subscription row yet — should have been created by trigger, allow
         return true;
       }
 
       if (sub.plan !== "free") {
-        // Pro/paid users — increment but don't block
-        await supabase
-          .from("user_subscriptions")
-          .update({ generations_used: sub.generations_used + 1 })
-          .eq("user_id", user.id);
+        await supabase.rpc("increment_generation_usage", { p_user_id: user.id });
         return true;
       }
 
@@ -47,11 +42,7 @@ export function useGenerationLimit() {
         return false;
       }
 
-      // Increment usage
-      await supabase
-        .from("user_subscriptions")
-        .update({ generations_used: sub.generations_used + 1 })
-        .eq("user_id", user.id);
+      await supabase.rpc("increment_generation_usage", { p_user_id: user.id });
 
       const remaining = sub.generations_limit - sub.generations_used - 1;
       if (remaining <= 2 && remaining >= 0) {
@@ -64,7 +55,6 @@ export function useGenerationLimit() {
       return true;
     } catch (err: any) {
       console.error("Generation limit check failed:", err);
-      // Don't block on error
       return true;
     } finally {
       setChecking(false);
