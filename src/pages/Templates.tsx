@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { LayoutGrid, Search, Heart, Download, Code, Eye, X } from "lucide-react";
+import { LayoutGrid, Search, Heart, Download, Code, Eye, X, Copy, Check } from "lucide-react";
 
 const categories = ["All", "Landing Pages", "Dashboards", "Forms", "Cards", "Navigation", "E-commerce"];
 
