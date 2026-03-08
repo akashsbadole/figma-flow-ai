@@ -9,7 +9,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, deviceType = "mobile", variantCount = 4 } = await req.json();
+    const { prompt, deviceType = "mobile", variantCount = 4, referenceImage, iterateOn } = await req.json();
     if (!prompt) throw new Error("Prompt is required");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -23,7 +23,42 @@ serve(async (req) => {
 
     const device = deviceDimensions[deviceType as keyof typeof deviceDimensions] || deviceDimensions.mobile;
 
-    const systemPrompt = `You are an expert UI designer creating ${variantCount} different design variants for a ${device.label} (${device.width}x${device.height}px) screen.
+    let systemPrompt: string;
+
+    if (iterateOn) {
+      // Iteration mode: modify existing design
+      systemPrompt = `You are an expert UI designer. The user has an existing design and wants to modify it.
+
+Current HTML:
+\`\`\`html
+${iterateOn.html}
+\`\`\`
+
+Current CSS:
+\`\`\`css
+${iterateOn.css}
+\`\`\`
+
+Apply the user's requested changes while keeping the overall structure intact. Return ONLY valid JSON:
+{
+  "variants": [
+    {
+      "name": "Updated Design",
+      "html": "<the modified HTML>",
+      "css": "<the modified CSS>"
+    }
+  ]
+}
+
+RULES:
+- Keep the same viewport size: ${device.width}x${device.height}px
+- Only modify what the user asks for
+- Preserve the overall layout and structure
+- Do not include markdown, explanation, or code fences. Just the JSON.`;
+    } else {
+      systemPrompt = `You are an expert UI designer creating ${variantCount} different design variants for a ${device.label} (${device.width}x${device.height}px) screen.
+
+${referenceImage ? "The user has provided a reference image. Use it as visual inspiration for the design style, colors, and layout approach." : ""}
 
 For each variant, generate clean, modern HTML and CSS. Each variant should have a distinctly different visual approach (different color schemes, layouts, typography choices) while fulfilling the same design brief.
 
@@ -47,6 +82,22 @@ IMPORTANT RULES:
 - Add realistic placeholder content (text, icons as unicode/emoji)
 - Make each variant visually distinct and polished
 - Do not include any markdown, explanation, or code fences. Just the JSON object.`;
+    }
+
+    // Build messages
+    const messages: any[] = [{ role: "system", content: systemPrompt }];
+
+    if (referenceImage) {
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: referenceImage } },
+        ],
+      });
+    } else {
+      messages.push({ role: "user", content: prompt });
+    }
 
     const codeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -55,11 +106,8 @@ IMPORTANT RULES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ],
+        model: referenceImage ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview",
+        messages,
       }),
     });
 
@@ -87,7 +135,6 @@ IMPORTANT RULES:
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
       parsed = JSON.parse(jsonMatch[1].trim());
     } catch {
-      // Fallback: treat as single variant
       parsed = { variants: [{ name: "Design", html: content, css: "" }] };
     }
 

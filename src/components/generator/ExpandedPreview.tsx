@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Copy, Code, Download, Check, MousePointer } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileImage, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,23 +19,54 @@ interface ExpandedPreviewProps {
   deviceWidth: number;
   deviceHeight: number;
   onClose: () => void;
+  onIterate?: (followUp: string, currentHtml: string, currentCss: string) => Promise<{ html: string; css: string } | null>;
 }
 
-export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight, onClose }: ExpandedPreviewProps) {
+export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight, onClose, onIterate }: ExpandedPreviewProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editedHtml, setEditedHtml] = useState(variant.html);
   const [editedCss, setEditedCss] = useState(variant.css);
+  const [followUp, setFollowUp] = useState("");
+  const [iterating, setIterating] = useState(false);
+  const [history, setHistory] = useState<{ html: string; css: string }[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const getScale = () => {
-    const maxH = window.innerHeight * 0.75;
-    const maxW = window.innerWidth * 0.6;
+    const maxH = window.innerHeight * 0.65;
+    const maxW = window.innerWidth * 0.55;
     return Math.min(maxW / deviceWidth, maxH / deviceHeight, 1);
   };
 
   const scale = getScale();
+
+  const handleIterate = async () => {
+    if (!followUp.trim() || !onIterate || iterating) return;
+    setIterating(true);
+    try {
+      const result = await onIterate(followUp.trim(), editedHtml, editedCss);
+      if (result) {
+        setHistory((prev) => [...prev, { html: editedHtml, css: editedCss }]);
+        setEditedHtml(result.html);
+        setEditedCss(result.css);
+        setFollowUp("");
+        toast({ title: "Design updated!" });
+      }
+    } catch (err: any) {
+      toast({ title: "Iteration failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIterating(false);
+    }
+  };
+
+  const undoIteration = () => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setEditedHtml(prev.html);
+    setEditedCss(prev.css);
+    setHistory((h) => h.slice(0, -1));
+  };
 
   const copyToFigma = async () => {
     try {
@@ -65,6 +97,16 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const downloadCss = () => {
+    const blob = new Blob([editedCss], { type: "text/css" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}.css`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
@@ -77,11 +119,48 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
       const doc = iframeRef.current.contentDocument;
       if (doc) {
         doc.designMode = "off";
-        // Capture updated HTML
         setEditedHtml(doc.body.innerHTML);
       }
     }
   }, [editMode, toast]);
+
+  const renderDeviceFrame = (ref?: React.Ref<HTMLIFrameElement>) => {
+    const srcDoc = `<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`;
+    const iframeEl = (
+      <iframe
+        ref={ref as any}
+        srcDoc={srcDoc}
+        className="w-full h-full border-0"
+        title={variant.name}
+      />
+    );
+
+    if (deviceType === "mobile") {
+      return (
+        <div className="relative rounded-[2.5rem] bg-foreground/90 p-3 h-full shadow-elevated">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[120px] h-[28px] bg-foreground/90 rounded-b-2xl z-10" />
+          <div className="w-full h-full rounded-[2rem] overflow-hidden bg-background">{iframeEl}</div>
+        </div>
+      );
+    }
+    if (deviceType === "tablet") {
+      return (
+        <div className="relative rounded-[1.5rem] bg-foreground/90 p-3 h-full shadow-elevated">
+          <div className="w-full h-full rounded-[1rem] overflow-hidden bg-background">{iframeEl}</div>
+        </div>
+      );
+    }
+    return (
+      <div className="relative rounded-xl bg-foreground/90 shadow-elevated h-full flex flex-col">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/20">
+          <div className="w-3 h-3 rounded-full bg-destructive/60" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+          <div className="w-3 h-3 rounded-full bg-green-500/60" />
+        </div>
+        <div className="flex-1 overflow-hidden bg-background">{iframeEl}</div>
+      </div>
+    );
+  };
 
   return (
     <motion.div
@@ -96,8 +175,8 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
         onClick={(e) => e.stopPropagation()}
       >
         {/* Preview side */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="flex items-center justify-between w-full mb-4">
+        <div className="flex-1 flex flex-col">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">{variant.name}</h2>
             <div className="flex gap-2">
               <Button
@@ -111,10 +190,13 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               </Button>
               <Button variant="outline" size="sm" onClick={copyToFigma}>
                 {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                Copy for Figma
+                Figma
               </Button>
               <Button variant="outline" size="sm" onClick={downloadHtml}>
-                <Download className="h-4 w-4 mr-1" /> Download
+                <Download className="h-4 w-4 mr-1" /> HTML
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadCss}>
+                <Code className="h-4 w-4 mr-1" /> CSS
               </Button>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="h-4 w-4" />
@@ -122,10 +204,7 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
             </div>
           </div>
 
-          <div
-            className="bg-muted rounded-xl p-6 flex items-center justify-center"
-            style={{ minHeight: deviceHeight * scale + 48 }}
-          >
+          <div className="flex-1 bg-muted rounded-xl p-4 flex items-center justify-center overflow-hidden">
             <div
               style={{
                 width: deviceWidth,
@@ -134,52 +213,43 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
                 transformOrigin: "top center",
               }}
             >
-              {deviceType === "mobile" ? (
-                <div className="relative rounded-[2.5rem] bg-foreground/90 p-3 h-full shadow-elevated">
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[120px] h-[28px] bg-foreground/90 rounded-b-2xl z-10" />
-                  <div className="w-full h-full rounded-[2rem] overflow-hidden bg-background">
-                    <iframe
-                      ref={iframeRef}
-                      srcDoc={`<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`}
-                      className="w-full h-full border-0"
-                      title={variant.name}
-                    />
-                  </div>
-                </div>
-              ) : deviceType === "tablet" ? (
-                <div className="relative rounded-[1.5rem] bg-foreground/90 p-3 h-full shadow-elevated">
-                  <div className="w-full h-full rounded-[1rem] overflow-hidden bg-background">
-                    <iframe
-                      ref={iframeRef}
-                      srcDoc={`<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`}
-                      className="w-full h-full border-0"
-                      title={variant.name}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="relative rounded-xl bg-foreground/90 shadow-elevated h-full flex flex-col">
-                  <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/20">
-                    <div className="w-3 h-3 rounded-full bg-destructive/60" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                    <div className="w-3 h-3 rounded-full bg-green-500/60" />
-                  </div>
-                  <div className="flex-1 overflow-hidden bg-background">
-                    <iframe
-                      ref={iframeRef}
-                      srcDoc={`<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`}
-                      className="w-full h-full border-0"
-                      title={variant.name}
-                    />
-                  </div>
-                </div>
-              )}
+              {renderDeviceFrame(iframeRef)}
             </div>
           </div>
+
+          {/* Follow-up iteration bar */}
+          {onIterate && (
+            <div className="mt-3 flex gap-2">
+              <div className="flex-1 relative">
+                <Textarea
+                  placeholder="Iterate: 'make the header darker', 'change to blue scheme'..."
+                  value={followUp}
+                  onChange={(e) => setFollowUp(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleIterate(); }
+                  }}
+                  className="min-h-[44px] max-h-[80px] resize-none pr-12 text-sm"
+                />
+                <Button
+                  size="icon"
+                  disabled={!followUp.trim() || iterating}
+                  onClick={handleIterate}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 gradient-primary text-primary-foreground rounded-lg"
+                >
+                  {iterating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+              {history.length > 0 && (
+                <Button variant="outline" size="sm" onClick={undoIteration} className="self-center">
+                  Undo
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Code panel */}
-        <div className="w-[400px] flex flex-col glass rounded-xl overflow-hidden">
+        <div className="w-[380px] flex flex-col glass rounded-xl overflow-hidden">
           <Tabs defaultValue="html" className="flex-1 flex flex-col">
             <TabsList className="w-full justify-start rounded-none border-b border-border/50 bg-transparent px-2">
               <TabsTrigger value="html">HTML</TabsTrigger>

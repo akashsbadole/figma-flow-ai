@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image } from "lucide-react";
+import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PromptInputProps {
-  onGenerate: (prompt: string, deviceType: string) => void;
+  onGenerate: (prompt: string, deviceType: string, referenceImage?: string) => void;
   generating: boolean;
 }
 
@@ -26,10 +26,13 @@ const examples = [
 export function PromptInput({ onGenerate, generating }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const [deviceType, setDeviceType] = useState("mobile");
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (prompt.trim() && !generating) {
-      onGenerate(prompt.trim(), deviceType);
+      onGenerate(prompt.trim(), deviceType, referenceImage || undefined);
     }
   };
 
@@ -40,12 +43,53 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return; // 5MB limit
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setReferenceImage(base64);
+      setReferencePreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setReferenceImage(null);
+    setReferencePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
-      {/* Main input card */}
       <div className="relative rounded-2xl bg-card border border-border/50 shadow-elevated overflow-hidden">
+        {/* Reference image preview */}
+        {referencePreview && (
+          <div className="px-5 pt-4 pb-0">
+            <div className="relative inline-block">
+              <img
+                src={referencePreview}
+                alt="Reference"
+                className="h-20 rounded-lg border border-border/50 object-cover"
+              />
+              <button
+                onClick={removeImage}
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:scale-110 transition-transform"
+              >
+                <X className="h-3 w-3" />
+              </button>
+              <span className="absolute bottom-1 left-1 text-[10px] bg-foreground/70 text-background px-1.5 py-0.5 rounded">
+                Reference
+              </span>
+            </div>
+          </div>
+        )}
+
         <Textarea
-          placeholder="Describe your design..."
+          placeholder={referenceImage ? "Describe what to create based on this reference..." : "Describe your design..."}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -55,8 +99,21 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
         {/* Bottom toolbar */}
         <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 border-t border-border/30">
           <div className="flex items-center gap-1">
-            {/* Attachment button placeholder */}
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled>
+            {/* Image attachment */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", referenceImage ? "text-primary" : "text-muted-foreground")}
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach reference image"
+            >
               <Image className="h-4 w-4" />
             </Button>
 
