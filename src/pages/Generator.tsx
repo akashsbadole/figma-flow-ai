@@ -69,6 +69,10 @@ const Generator = () => {
     setDsError(null);
     setScreens([]);
     setComponents([]);
+    setPageLayouts([]);
+    setFormPatterns([]);
+    setDataDisplay([]);
+    setNavigationPatterns([]);
     setTplError(null);
 
     try {
