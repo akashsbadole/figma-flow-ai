@@ -210,6 +210,8 @@ const DesignSystemBuilder = () => {
 
   const handleGenerate = async () => {
     if (!brandPrompt.trim() || !user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
 
     try {

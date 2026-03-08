@@ -94,7 +94,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="space-y-1">
+        <ThemeToggle collapsed={collapsed} />
         <Button
           variant="ghost"
           size={collapsed ? "icon" : "default"}

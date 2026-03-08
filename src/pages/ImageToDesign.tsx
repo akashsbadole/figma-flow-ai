@@ -45,6 +45,8 @@ const ImageToDesign = () => {
 
   const handleGenerate = async () => {
     if (!imageBase64 || !user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
     setResult(null);
 

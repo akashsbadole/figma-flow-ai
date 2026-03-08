@@ -63,6 +63,8 @@ const Generator = () => {
 
   const handleGenerate = async (prompt: string, deviceType: string, referenceImage?: string) => {
     if (!user) return;
+    const allowed = await checkAndIncrement();
+    if (!allowed) return;
     setGenerating(true);
     setResult(null);
     setSelectedVariant(null);
