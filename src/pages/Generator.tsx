@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Wand2, Palette, LayoutTemplate } from "lucide-react";
+import { Sparkles, Wand2, Palette, LayoutTemplate, PackageOpen } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { PromptInput } from "@/components/generator/PromptInput";
 import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
 import { DesignSystemPreview } from "@/components/generator/DesignSystemPreview";
 import { TemplatesPreview } from "@/components/generator/TemplatesPreview";
 import { useGenerationLimit } from "@/hooks/useGenerationLimit";
+import { exportVariantsAsZip } from "@/lib/export-utils";
 
 interface Variant {
   id: string;
