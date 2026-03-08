@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Wand2, LayoutGrid, Palette, FolderOpen, Plus } from "lucide-react";
+import { Wand2, LayoutGrid, Palette, FolderOpen, Plus, Zap, Crown, TrendingUp } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
