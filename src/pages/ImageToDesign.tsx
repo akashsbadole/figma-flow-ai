@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,21 +51,17 @@ const ImageToDesign = () => {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("image-to-design", {
-        body: {
-          image: imageBase64,
-          prompt: additionalPrompt || "Convert this design to code",
-        },
+      const data = await api.imageToDesign({
+        image: imageBase64,
+        prompt: additionalPrompt || "Convert this design to code",
       });
 
-      if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       setResult(data);
 
       // Save to history
-      await supabase.from("generation_history").insert({
-        user_id: user.id,
+      await api.createGenerationHistory({
         type: "image_to_design",
         prompt: additionalPrompt || "Image to design conversion",
         result: data,
@@ -73,8 +69,9 @@ const ImageToDesign = () => {
       });
 
       toast({ title: "Design generated!" });
-    } catch (err: any) {
-      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      toast({ title: "Generation failed", description: errorMessage, variant: "destructive" });
     } finally {
       setGenerating(false);
     }

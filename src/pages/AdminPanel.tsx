@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,16 +44,17 @@ const AdminPanel = () => {
 
   const checkAdmin = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (data) {
-      setIsAdmin(true);
-      loadUsers();
+    const data = await api.getAdminUsers();
+    
+    if (data?.profiles) {
+      const userRole = data.roles?.find((r: any) => r.user_id === user.id && r.role === 'admin');
+      if (userRole) {
+        setIsAdmin(true);
+        loadUsers();
+      } else {
+        setIsAdmin(false);
+        setLoading(false);
+      }
     } else {
       setIsAdmin(false);
       setLoading(false);
@@ -62,47 +63,28 @@ const AdminPanel = () => {
 
   const loadUsers = async () => {
     setLoading(true);
-    const { data: profiles, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const data = await api.getAdminUsers();
 
-    if (error) {
-      toast({ title: "Failed to load users", variant: "destructive" });
-      setLoading(false);
-      return;
+    if (data?.profiles) {
+      const adminSet = new Set((data.roles || []).map((r: any) => r.user_id));
+      setAdminIds(adminSet);
+
+      const subsMap = new Map((data.subscriptions || []).map((s: any) => [s.user_id, s]));
+      const enriched = (data.profiles || []).map((p: any) => ({
+        ...p,
+        subscription: subsMap.get(p.user_id),
+        isAdmin: adminSet.has(p.user_id),
+      }));
+
+      setUsers(enriched);
     }
-
-    const { data: subs } = await supabase
-      .from("user_subscriptions")
-      .select("*");
-
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("*")
-      .eq("role", "admin");
-
-    const adminSet = new Set((roles as any[] || []).map((r: any) => r.user_id));
-    setAdminIds(adminSet);
-
-    const subsMap = new Map((subs as any[] || []).map((s: any) => [s.user_id, s]));
-    const enriched = (profiles as any[] || []).map((p: any) => ({
-      ...p,
-      subscription: subsMap.get(p.user_id),
-      isAdmin: adminSet.has(p.user_id),
-    }));
-
-    setUsers(enriched);
     setLoading(false);
   };
 
   const toggleUserStatus = async (userId: string, currentEnabled: boolean) => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_enabled: !currentEnabled })
-      .eq("user_id", userId);
+    const result = await api.toggleUser(userId, !currentEnabled);
 
-    if (error) {
+    if (result?.error) {
       toast({ title: "Failed to update", variant: "destructive" });
     } else {
       setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, is_enabled: !currentEnabled } : u));
@@ -112,12 +94,9 @@ const AdminPanel = () => {
 
   const updatePlan = async (userId: string, plan: string) => {
     const newLimit = plan === "pro" ? 999 : 5;
-    const { error } = await supabase
-      .from("user_subscriptions")
-      .update({ plan, generations_limit: newLimit })
-      .eq("user_id", userId);
+    const result = await api.updateSubscription(userId, { plan, status: 'active', generations_limit: newLimit });
 
-    if (error) {
+    if (result?.error) {
       toast({ title: "Failed to update plan", variant: "destructive" });
     } else {
       setUsers((prev) =>
@@ -132,25 +111,14 @@ const AdminPanel = () => {
   };
 
   const toggleAdminRole = async (userId: string, currentlyAdmin: boolean) => {
-    if (currentlyAdmin) {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", "admin");
-      if (error) {
-        toast({ title: "Failed to remove admin", variant: "destructive" });
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, role: "admin" } as any);
-      if (error) {
-        toast({ title: "Failed to grant admin", variant: "destructive" });
-        return;
-      }
+    const newRole = currentlyAdmin ? 'user' : 'admin';
+    const result = await api.updateUserRole(userId, newRole);
+    
+    if (result?.error) {
+      toast({ title: currentlyAdmin ? "Failed to remove admin" : "Failed to grant admin", variant: "destructive" });
+      return;
     }
+    
     setAdminIds((prev) => {
       const next = new Set(prev);
       currentlyAdmin ? next.delete(userId) : next.add(userId);

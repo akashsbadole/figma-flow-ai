@@ -1,13 +1,21 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, ReactNode, useEffect } from "react";
+import { useUser as useClerkUser, useAuth as useClerkAuth } from "@clerk/react";
+
+interface CustomUser {
+  id: string;
+  email: string;
+  display_name: string;
+  firstName: string;
+  lastName: string;
+  imageUrl: string;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: CustomUser | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
+  isSignedIn: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -15,57 +23,53 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded, isSignedIn } = useClerkUser();
+  const { signOut: clerkSignOut } = useClerkAuth();
+
+  const user: CustomUser | null = clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.emailAddresses[0]?.emailAddress || "",
+    display_name: clerkUser.fullName || clerkUser.username || clerkUser.emailAddresses[0]?.emailAddress || "",
+    firstName: clerkUser.firstName || "",
+    lastName: clerkUser.lastName || "",
+    imageUrl: clerkUser.imageUrl || "",
+  } : null;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    if (user) {
+      localStorage.setItem('clerk_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('clerk_user');
+    }
+  }, [user]);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: displayName },
-      },
-    });
-    if (error) throw error;
+  const signIn = async (_email: string, _password: string) => {
+    // Handled by Clerk
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+  const signUp = async (_email: string, _password: string, _displayName?: string) => {
+    // Handled by Clerk
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    localStorage.removeItem('clerk_user');
+    await clerkSignOut();
   };
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) throw error;
+  const resetPassword = async (_email: string) => {
+    throw new Error("Password reset handled by Clerk");
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading: !isLoaded, 
+      isSignedIn: !!isSignedIn,
+      signIn, 
+      signUp, 
+      signOut, 
+      resetPassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );

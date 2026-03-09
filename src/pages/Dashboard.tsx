@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,17 +21,23 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      const [projectsRes, designsRes, subRes, histRes] = await Promise.all([
-        supabase.from("projects").select("*").order("updated_at", { ascending: false }).limit(6),
-        supabase.from("designs").select("*").order("created_at", { ascending: false }).limit(4),
-        supabase.from("user_subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("generation_history").select("id", { count: "exact", head: true }),
-      ]);
-      setProjects(projectsRes.data || []);
-      setRecentDesigns(designsRes.data || []);
-      setSubscription(subRes.data);
-      setHistoryCount(histRes.count || 0);
-      setLoading(false);
+      try {
+        const [projectsRes, designsRes, subRes, histRes] = await Promise.all([
+          api.getProjects(),
+          api.getDesigns(),
+          api.getSubscription(),
+          api.getGenerationHistory(),
+        ]);
+        // Handle cases where API returns error (401 Unauthorized)
+        setProjects(Array.isArray(projectsRes) ? projectsRes : []);
+        setRecentDesigns(Array.isArray(designsRes) ? designsRes.slice(0, 4) : []);
+        setSubscription(subRes && !subRes.error ? subRes : null);
+        setHistoryCount(Array.isArray(histRes) ? histRes.length : 0);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [user]);
@@ -65,7 +71,7 @@ const Dashboard = () => {
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back{user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : ""}
+            Welcome back{user?.display_name ? `, ${user.display_name}` : ""}
           </h1>
           <p className="text-muted-foreground">What would you like to create today?</p>
         </motion.div>

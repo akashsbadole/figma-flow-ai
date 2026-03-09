@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,11 +57,8 @@ const DesignSystemBuilder = () => {
     setGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-design-system", {
-        body: { prompt: brandPrompt.trim() },
-      });
+      const data = await api.generateDesignSystem({ prompt: brandPrompt.trim() });
 
-      if (error) throw error;
       if (data.error) throw new Error(data.error);
 
       const ds = data.designSystem;
@@ -163,8 +160,7 @@ const DesignSystemBuilder = () => {
 
       setDesignSystem(ds);
 
-      await supabase.from("design_systems").insert({
-        user_id: user.id,
+      await api.createDesignSystem({
         name: ds.name || "Untitled System",
         colors: ds.colors,
         typography: ds.typography,

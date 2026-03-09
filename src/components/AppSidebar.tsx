@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { useEffect, useState } from "react";
 
 const mainNavItems = [
@@ -44,13 +44,15 @@ export function AppSidebar() {
 
   useEffect(() => {
     if (user) {
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle()
-        .then(({ data }) => setIsAdmin(!!data));
+      api.getAdminUsers()
+        .then((data) => {
+          if (data?.profiles) {
+            const currentUser = data.profiles.find((p: any) => p.user_id === user.id);
+            const userRole = data.roles?.find((r: any) => r.user_id === user.id && r.role === 'admin');
+            setIsAdmin(!!userRole);
+          }
+        })
+        .catch(() => setIsAdmin(false));
     }
   }, [user]);
 

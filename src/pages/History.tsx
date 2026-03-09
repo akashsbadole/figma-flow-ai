@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,24 +143,19 @@ const History = () => {
 
   const loadHistory = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("generation_history")
-      .select("*")
-      .eq("user_id", user!.id)
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const data = await api.getGenerationHistory();
 
-    if (error) {
+    if (data?.error) {
       toast({ title: "Failed to load history", variant: "destructive" });
     } else {
-      setHistory((data as any[]) || []);
+      setHistory(data || []);
     }
     setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("generation_history").delete().eq("id", id);
-    if (error) {
+    const result = await api.deleteGenerationHistory(id);
+    if (result?.error) {
       toast({ title: "Failed to delete", variant: "destructive" });
     } else {
       setHistory((prev) => prev.filter((h) => h.id !== id));

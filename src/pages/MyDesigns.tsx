@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,16 +46,13 @@ const MyDesigns = () => {
   }, [user]);
 
   const fetchDesigns = async () => {
-    const { data } = await supabase
-      .from("designs")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const data = await api.getDesigns();
     setDesigns(data || []);
     setLoading(false);
   };
 
   const deleteDesign = async (id: string) => {
-    await supabase.from("designs").delete().eq("id", id);
+    await api.deleteDesign(id);
     setDesigns((prev) => prev.filter((d) => d.id !== id));
     setSelectedDesigns((prev) => { const n = new Set(prev); n.delete(id); return n; });
     toast({ title: "Design deleted" });
@@ -64,7 +61,7 @@ const MyDesigns = () => {
   const bulkDelete = async () => {
     const ids = Array.from(selectedDesigns);
     for (const id of ids) {
-      await supabase.from("designs").delete().eq("id", id);
+      await api.deleteDesign(id);
     }
     setDesigns((prev) => prev.filter((d) => !selectedDesigns.has(d.id)));
     setSelectedDesigns(new Set());

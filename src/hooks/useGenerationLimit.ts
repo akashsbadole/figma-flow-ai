@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -15,24 +15,18 @@ export function useGenerationLimit() {
     setChecking(true);
 
     try {
-      const { data: sub, error } = await supabase
-        .from("user_subscriptions")
-        .select("generations_used, generations_limit, plan")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
+      const sub = await api.getSubscription();
 
       if (!sub) {
         return true;
       }
 
       if (sub.plan !== "free") {
-        await supabase.rpc("increment_generation_usage", { p_user_id: user.id });
+        await api.incrementUsage();
         return true;
       }
 
-      if (sub.generations_used >= sub.generations_limit) {
+      if ((sub.generations_used || 0) >= (sub.generations_limit || 0)) {
         toast({
           title: "Generation limit reached",
           description: `You've used all ${sub.generations_limit} free generations. Upgrade to Pro for unlimited access.`,
@@ -42,9 +36,9 @@ export function useGenerationLimit() {
         return false;
       }
 
-      await supabase.rpc("increment_generation_usage", { p_user_id: user.id });
+      await api.incrementUsage();
 
-      const remaining = sub.generations_limit - sub.generations_used - 1;
+      const remaining = (sub.generations_limit || 0) - (sub.generations_used || 0) - 1;
       if (remaining <= 2 && remaining >= 0) {
         toast({
           title: `${remaining} generation${remaining !== 1 ? "s" : ""} remaining`,

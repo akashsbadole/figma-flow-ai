@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,8 +39,8 @@ const Templates = () => {
 
   useEffect(() => {
     const fetchTemplates = async () => {
-      const { data, error } = await supabase.from("templates").select("*").order("created_at", { ascending: false });
-      if (!error && data) setTemplates(data as Template[]);
+      const data = await api.getTemplates();
+      if (data) setTemplates(data as Template[]);
       setLoading(false);
     };
     fetchTemplates();
@@ -49,11 +49,8 @@ const Templates = () => {
   useEffect(() => {
     if (!user) return;
     const fetchSaved = async () => {
-      const { data } = await supabase
-        .from("saved_templates")
-        .select("template_id")
-        .eq("user_id", user.id);
-      if (data) setSavedIds(new Set(data.map((s) => s.template_id)));
+      const data = await api.getSavedTemplates();
+      if (data) setSavedIds(new Set(data.map((s: any) => s.id)));
     };
     fetchSaved();
   }, [user]);
@@ -72,7 +69,7 @@ const Templates = () => {
     const isSaved = savedIds.has(templateId);
 
     if (isSaved) {
-      await supabase.from("saved_templates").delete().eq("user_id", user.id).eq("template_id", templateId);
+      await api.unsaveTemplate(templateId);
       setSavedIds((prev) => {
         const next = new Set(prev);
         next.delete(templateId);
@@ -80,7 +77,7 @@ const Templates = () => {
       });
       toast({ title: "Removed from saved" });
     } else {
-      await supabase.from("saved_templates").insert({ user_id: user.id, template_id: templateId });
+      await api.saveTemplate(templateId);
       setSavedIds((prev) => new Set(prev).add(templateId));
       toast({ title: "Saved!" });
     }

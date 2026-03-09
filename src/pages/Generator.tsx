@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,12 +49,10 @@ const Generator = () => {
   const [expandedVariant, setExpandedVariant] = useState<Variant | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState("");
 
-  // Design system state
   const [designSystem, setDesignSystem] = useState<any>(null);
   const [dsLoading, setDsLoading] = useState(false);
   const [dsError, setDsError] = useState<string | null>(null);
 
-  // Templates state
   const [screens, setScreens] = useState<TemplateItem[]>([]);
   const [components, setComponents] = useState<TemplateItem[]>([]);
   const [pageLayouts, setPageLayouts] = useState<TemplateItem[]>([]);
@@ -83,42 +81,34 @@ const Generator = () => {
     setTplError(null);
 
     try {
-      // Launch all 3 generations in parallel
       const [designRes, dsRes, tplRes] = await Promise.allSettled([
-        supabase.functions.invoke("generate-design", {
-          body: { prompt, deviceType, variantCount: 4, referenceImage },
-        }),
+        api.generateDesign({ prompt, deviceType, variantCount: 4, referenceImage }),
         (async () => {
           setDsLoading(true);
-          const r = await supabase.functions.invoke("generate-design-system", { body: { prompt } });
+          const r = await api.generateDesignSystem({ prompt });
           setDsLoading(false);
           return r;
         })(),
         (async () => {
           setTplLoading(true);
-          const r = await supabase.functions.invoke("generate-templates", { body: { prompt, deviceType } });
+          const r = await api.generateTemplates({ prompt, deviceType });
           setTplLoading(false);
           return r;
         })(),
       ]);
 
-      // Handle variants
       if (designRes.status === "fulfilled") {
-        const { data, error } = designRes.value;
-        if (error) throw error;
+        const data = designRes.value;
         if (data?.error) throw new Error(data.error);
         setResult(data);
         if (data.variants?.length > 0) {
           setSelectedVariant(data.variants[0].id);
-          await supabase.from("designs").insert({
-            user_id: user.id,
+          await api.createDesign({
             prompt,
             html_code: data.variants[0].html,
             css_code: data.variants[0].css,
           });
-          // Save to history
-          await supabase.from("generation_history").insert({
-            user_id: user.id,
+          await api.createGenerationHistory({
             type: "variant",
             prompt,
             result: { html: data.variants[0].html, css: data.variants[0].css, variantCount: data.variants.length },
@@ -128,7 +118,6 @@ const Generator = () => {
         throw designRes.reason;
       }
 
-      // Handle design system
       if (dsRes.status === "fulfilled") {
         const { data, error } = dsRes.value;
         if (!error && data?.designSystem) {
@@ -140,7 +129,6 @@ const Generator = () => {
         setDsError("Design system generation failed");
       }
 
-      // Handle templates
       if (tplRes.status === "fulfilled") {
         const { data, error } = tplRes.value;
         if (!error && !data?.error) {
@@ -169,21 +157,16 @@ const Generator = () => {
 
   const handleIterate = async (followUp: string, currentHtml: string, currentCss: string): Promise<{ html: string; css: string } | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke("generate-design", {
-        body: {
-          prompt: followUp,
-          deviceType: result?.deviceType || "mobile",
-          variantCount: 1,
-          iterateOn: { html: currentHtml, css: currentCss },
-        },
+      const data = await api.generateDesign({
+        prompt: followUp,
+        deviceType: result?.deviceType || "mobile",
+        variantCount: 1,
       });
-      if (error) throw error;
       if (data.error) throw new Error(data.error);
       const v = data.variants?.[0];
       if (!v) throw new Error("No result returned");
       if (user) {
-        await supabase.from("designs").insert({
-          user_id: user.id,
+        await api.createDesign({
           prompt: `${currentPrompt} → ${followUp}`,
           html_code: v.html,
           css_code: v.css,
