@@ -83,78 +83,53 @@ const Generator = () => {
     setTplError(null);
 
     try {
-      // Launch all 3 generations in parallel
-      const [designRes, dsRes, tplRes] = await Promise.allSettled([
-        supabase.functions.invoke("generate-design", {
-          body: { prompt, deviceType, variantCount: 4, referenceImage },
-        }),
-        (async () => {
-          setDsLoading(true);
-          const r = await supabase.functions.invoke("generate-design-system", { body: { prompt } });
-          setDsLoading(false);
-          return r;
-        })(),
-        (async () => {
-          setTplLoading(true);
-          const r = await supabase.functions.invoke("generate-templates", { body: { prompt, deviceType } });
-          setTplLoading(false);
-          return r;
-        })(),
-      ]);
+      setDsLoading(true);
+      setTplLoading(true);
 
-      // Handle variants
-      if (designRes.status === "fulfilled") {
-        const { data, error } = designRes.value;
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-        setResult(data);
-        if (data.variants?.length > 0) {
-          setSelectedVariant(data.variants[0].id);
-          await supabase.from("designs").insert({
-            user_id: user.id,
-            prompt,
-            html_code: data.variants[0].html,
-            css_code: data.variants[0].css,
-          });
-          // Save to history
-          await supabase.from("generation_history").insert({
-            user_id: user.id,
-            type: "variant",
-            prompt,
-            result: { html: data.variants[0].html, css: data.variants[0].css, variantCount: data.variants.length },
-          });
-        }
-      } else {
-        throw designRes.reason;
+      const { data, error } = await supabase.functions.invoke("generate-full-design", {
+        body: { prompt, deviceType, variantCount: 4, referenceImage },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Handle Variants
+      setResult(data);
+      if (data.variants?.length > 0) {
+        setSelectedVariant(data.variants[0].id);
+        await supabase.from("designs").insert({
+          user_id: user.id,
+          prompt,
+          html_code: data.variants[0].html,
+          css_code: data.variants[0].css,
+        });
+        // Save to history
+        await supabase.from("generation_history").insert({
+          user_id: user.id,
+          type: "variant",
+          prompt,
+          result: { html: data.variants[0].html, css: data.variants[0].css, variantCount: data.variants.length },
+        });
       }
 
-      // Handle design system
-      if (dsRes.status === "fulfilled") {
-        const { data, error } = dsRes.value;
-        if (!error && data?.designSystem) {
-          setDesignSystem(data.designSystem);
-        } else {
-          setDsError(error?.message || data?.error || "Failed to generate design system");
-        }
+      // Handle Design System
+      if (data.designSystem) {
+        setDesignSystem(data.designSystem);
       } else {
-        setDsError("Design system generation failed");
+        setDsError("Failed to generate design system");
       }
 
-      // Handle templates
-      if (tplRes.status === "fulfilled") {
-        const { data, error } = tplRes.value;
-        if (!error && !data?.error) {
-          setScreens(data?.screens || data?.pageLayouts || []);
-          setComponents(data?.components || []);
-          setPageLayouts(data?.pageLayouts || []);
-          setFormPatterns(data?.formPatterns || []);
-          setDataDisplay(data?.dataDisplay || []);
-          setNavigationPatterns(data?.navigationPatterns || []);
-        } else {
-          setTplError(error?.message || data?.error || "Failed to generate templates");
-        }
+      // Handle Templates
+      if (data.templates) {
+        const t = data.templates;
+        setScreens(t.pageLayouts || []);
+        setComponents(t.components || []);
+        setPageLayouts(t.pageLayouts || []);
+        setFormPatterns(t.formPatterns || []);
+        setDataDisplay(t.dataDisplay || []);
+        setNavigationPatterns(t.navigationPatterns || []);
       } else {
-        setTplError("Template generation failed");
+        setTplError("Failed to generate templates");
       }
 
       toast({ title: "Generation complete!", description: "Designs, system, and templates ready" });
