@@ -5,6 +5,8 @@ import { X, Copy, Code, Download, Check, MousePointer, Sparkles, Loader2, FileIm
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { htmlCssToReactComponent } from "@/lib/export-utils";
+import { validateSVGForFigma, cleanSVGForFigma } from "@/lib/figma-svg-export";
+import { sanitizeCSS, sanitizeHTML } from "@/lib/sanitize-css";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -115,25 +117,83 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     setHistory((h) => h.slice(0, -1));
   };
 
+  const getIframeContent = () => {
+    const sanitizedCSS = sanitizeCSS(editedCss);
+    const sanitizedHTML = sanitizeHTML(editedHtml);
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      width: ${deviceWidth}px; 
+      height: ${deviceHeight}px; 
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    ${sanitizedCSS}
+  </style>
+</head>
+<body>
+  ${sanitizedHTML}
+  <script>
+    window.onerror = function(msg, url, line) {
+      window.parent.postMessage({ type: 'iframe-error', message: msg }, '*');
+      return true;
+    };
+  </script>
+</body>
+</html>`;
+  };
+
   const copyToFigma = async () => {
-    const svgContent = variant.svg || `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${deviceWidth} ${deviceHeight}" width="${deviceWidth}" height="${deviceHeight}"><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#888">No SVG available</text></svg>`;
+    let svgContent = variant.svg;
+    
+    if (!svgContent) {
+      svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${deviceWidth} ${deviceHeight}" width="${deviceWidth}" height="${deviceHeight}"><text x="50%" y="50%" text-anchor="middle" font-size="24" fill="#888">No SVG available</text></svg>`;
+    }
+    
+    const validation = validateSVGForFigma(svgContent);
+    
+    if (!validation.valid) {
+      toast({
+        title: "SVG validation failed",
+        description: validation.errors.join(', '),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (validation.warnings.length > 0) {
+      console.warn('SVG warnings:', validation.warnings);
+    }
+    
+    const cleanedSVG = cleanSVGForFigma(svgContent);
     
     try {
-      const htmlBlob = new Blob([svgContent], { type: "text/html" });
-      const textBlob = new Blob([svgContent], { type: "text/plain" });
+      const svgBlob = new Blob([cleanedSVG], { type: 'image/svg+xml' });
+      const textBlob = new Blob([cleanedSVG], { type: 'text/plain' });
+      const htmlBlob = new Blob([cleanedSVG], { type: 'text/html' });
 
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": htmlBlob,
-          "text/plain": textBlob,
-        }),
-      ]);
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'image/svg+xml': svgBlob,
+            'text/html': htmlBlob,
+            'text/plain': textBlob,
+          }),
+        ]);
+      } catch {
+        await navigator.clipboard.writeText(cleanedSVG);
+      }
 
       setCopied(true);
       toast({ title: "Design copied as SVG!", description: "Paste into Figma — elements are editable" });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      await navigator.clipboard.writeText(svgContent);
+      await navigator.clipboard.writeText(cleanedSVG);
       setCopied(true);
       toast({ title: "SVG copied as text", description: "Paste into Figma or save as .svg file" });
       setTimeout(() => setCopied(false), 2000);
@@ -196,13 +256,14 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   }, [editMode, toast]);
 
   const renderDeviceFrame = (ref?: React.Ref<HTMLIFrameElement>) => {
-    const srcDoc = `<style>*{margin:0;padding:0;box-sizing:border-box;}${editedCss}</style>${editedHtml}`;
+    const srcDoc = getIframeContent();
     const iframeEl = (
       <iframe
         ref={ref as any}
         srcDoc={srcDoc}
         className="w-full h-full border-0"
         title={variant.name}
+        sandbox="allow-scripts"
       />
     );
 

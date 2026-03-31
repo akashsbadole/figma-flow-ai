@@ -46,26 +46,61 @@ const MyDesigns = () => {
   }, [user]);
 
   const fetchDesigns = async () => {
-    const data = await api.getDesigns();
-    setDesigns(data || []);
-    setLoading(false);
+    setLoading(true);
+    try {
+      const data = await api.getDesigns();
+      if (Array.isArray(data)) {
+        setDesigns(data);
+      } else {
+        console.error('Designs API returned non-array data:', data);
+        setDesigns([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch designs:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to load designs. Please try again later.",
+        variant: "destructive"
+      });
+      setDesigns([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteDesign = async (id: string) => {
-    await api.deleteDesign(id);
-    setDesigns((prev) => prev.filter((d) => d.id !== id));
-    setSelectedDesigns((prev) => { const n = new Set(prev); n.delete(id); return n; });
-    toast({ title: "Design deleted" });
+    try {
+      await api.deleteDesign(id);
+      setDesigns((prev) => prev.filter((d) => d.id !== id));
+      setSelectedDesigns((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      toast({ title: "Design deleted" });
+    } catch (error) {
+      console.error('Failed to delete design:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete design. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const bulkDelete = async () => {
     const ids = Array.from(selectedDesigns);
-    for (const id of ids) {
-      await api.deleteDesign(id);
+    try {
+      for (const id of ids) {
+        await api.deleteDesign(id);
+      }
+      setDesigns((prev) => prev.filter((d) => !selectedDesigns.has(d.id)));
+      setSelectedDesigns(new Set());
+      toast({ title: `${ids.length} designs deleted` });
+    } catch (error) {
+      console.error('Failed to bulk delete designs:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete some designs. Please try again.",
+        variant: "destructive"
+      });
     }
-    setDesigns((prev) => prev.filter((d) => !selectedDesigns.has(d.id)));
-    setSelectedDesigns(new Set());
-    toast({ title: `${ids.length} designs deleted` });
   };
 
   const copyToFigma = async (design: Design) => {
@@ -153,7 +188,11 @@ const MyDesigns = () => {
   const toggleSelect = (id: string) => {
     setSelectedDesigns((prev) => {
       const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) {
+        n.delete(id);
+      } else {
+        n.add(id);
+      }
       return n;
     });
   };

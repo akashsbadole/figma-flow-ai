@@ -392,3 +392,146 @@ export async function copyDesignSystemForFigma(data: DesignSystemForSVG, toast: 
     toast({ title: "Copied as SVG!", description: "Paste in Figma (Ctrl/Cmd+V)" });
   }
 }
+
+export interface SVGValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export function validateSVGForFigma(svg: string): SVGValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  const forbidden = [
+    { pattern: /<foreignObject/i, message: 'Contains <foreignObject> - not supported in Figma' },
+    { pattern: /<html/i, message: 'Contains HTML tags - use native SVG only' },
+    { pattern: /<body/i, message: 'Contains <body> tag - use native SVG only' },
+    { pattern: /<div/i, message: 'Contains <div> tag - use <g> or <rect> instead' },
+    { pattern: /<script/i, message: 'Contains <script> tag - not allowed' },
+    { pattern: /<style/i, message: 'Contains <style> tag - use inline styles' },
+  ];
+  
+  for (const { pattern, message } of forbidden) {
+    if (pattern.test(svg)) {
+      errors.push(message);
+    }
+  }
+  
+  if (!svg.includes('viewBox')) {
+    errors.push('Missing viewBox attribute - required for Figma');
+  }
+  
+  if (!svg.includes('xmlns')) {
+    warnings.push('Missing xmlns attribute - may cause issues');
+  }
+  
+  if (svg.includes('width="100%"') || svg.includes('height="100%"')) {
+    warnings.push('Percentage dimensions found - use fixed viewBox instead');
+  }
+  
+  const textMatches = svg.match(/<text[^>]*>/g);
+  if (textMatches) {
+    textMatches.forEach((match, i) => {
+      if (!match.includes('font-family')) {
+        warnings.push(`Text element ${i + 1} missing font-family`);
+      }
+      if (!match.includes('font-size')) {
+        warnings.push(`Text element ${i + 1} missing font-size`);
+      }
+    });
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+export function cleanSVGForFigma(svg: string): string {
+  let cleaned = svg;
+  
+  cleaned = cleaned.replace(/<\?xml[^?]*\?>/g, '');
+  
+  cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+  
+  if (!cleaned.includes('xmlns=')) {
+    cleaned = cleaned.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+  
+  cleaned = cleaned.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  
+  cleaned = cleaned.replace(/<foreignObject\b[^<]*(?:(?!<\/foreignObject>)<[^<]*)*<\/foreignObject>/gi, '');
+  
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  return cleaned;
+}
+
+export async function copySVGToFigma(svg: string, toast: (opts: any) => void): Promise<boolean> {
+  try {
+    const validation = validateSVGForFigma(svg);
+    
+    if (!validation.valid) {
+      console.error('SVG validation failed:', validation.errors);
+      toast({
+        title: "SVG validation failed",
+        description: validation.errors.join(', '),
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (validation.warnings.length > 0) {
+      console.warn('SVG validation warnings:', validation.warnings);
+    }
+    
+    const cleaned = cleanSVGForFigma(svg);
+    
+    const svgBlob = new Blob([cleaned], { type: 'image/svg+xml' });
+    const textBlob = new Blob([cleaned], { type: 'text/plain' });
+    const htmlBlob = new Blob([cleaned], { type: 'text/html' });
+    
+    try {
+      const item = new ClipboardItem({
+        'image/svg+xml': svgBlob,
+        'text/html': htmlBlob,
+        'text/plain': textBlob,
+      });
+      await navigator.clipboard.write([item]);
+    } catch {
+      await navigator.clipboard.writeText(cleaned);
+    }
+    
+    toast({
+      title: "Copied to clipboard!",
+      description: "Paste directly in Figma (Cmd/Ctrl + V)",
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to copy SVG:', error);
+    toast({
+      title: "Copy failed",
+      description: "Please try again or download as SVG file",
+      variant: "destructive",
+    });
+    return false;
+  }
+}
+
+export function downloadSVG(svg: string, filename: string = 'design.svg'): void {
+  const cleaned = cleanSVGForFigma(svg);
+  const blob = new Blob([cleaned], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  URL.revokeObjectURL(url);
+}

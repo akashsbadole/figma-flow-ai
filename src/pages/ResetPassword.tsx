@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/integrations/neon/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,20 +18,18 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event from the auth callback
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setIsRecovery(true);
-      }
-    });
-
-    // Also check the URL hash for type=recovery
+    // Check the URL hash for type=recovery
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setIsRecovery(true);
+    } else {
+      // Check URL search params for recovery token
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      if (token) {
+        setIsRecovery(true);
+      }
     }
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,12 +45,35 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      // Get recovery token from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      
+      if (!token) {
+        throw new Error("Invalid recovery link");
+      }
+
+      // Call the password reset API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          password
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset password");
+      }
+
       toast({ title: "Password updated successfully!" });
-      navigate("/dashboard", { replace: true });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      navigate("/auth", { replace: true });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
     } finally {
       setLoading(false);
     }

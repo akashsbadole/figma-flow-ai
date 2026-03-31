@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/integrations/neon/client";
+import { useAuthHeader } from "@/hooks/useAuthHeader";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +13,9 @@ import { Wand2, LayoutGrid, Palette, FolderOpen, Plus, Zap, Crown, TrendingUp } 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<any[]>([]);
-  const [recentDesigns, setRecentDesigns] = useState<any[]>([]);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [projects, setProjects] = useState<{ id: string; name: string; type: string; updated_at: string }[]>([]);
+  const [recentDesigns, setRecentDesigns] = useState<{ id: string; prompt: string; image_url?: string }[]>([]);
+  const [subscription, setSubscription] = useState<{ plan: string; status: string; generations_used: number; generations_limit?: number } | null>(null);
   const [historyCount, setHistoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
 

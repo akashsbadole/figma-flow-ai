@@ -3,8 +3,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Crown, Check, Sparkles, Shield, Infinity } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Crown, Check, Sparkles, Shield, Infinity as InfinityIcon } from "lucide-react";
+import { api } from "@/integrations/neon/client";
 import { useQuery } from "@tanstack/react-query";
 
 const plans = [
@@ -50,12 +50,13 @@ const Pricing = () => {
     queryKey: ["subscription", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase
-        .from("user_subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      return data as any;
+      try {
+        const data = await api.getSubscription();
+        return data;
+      } catch (error) {
+        console.error('Failed to fetch subscription:', error);
+        return null;
+      }
     },
     enabled: !!user,
   });
@@ -129,7 +130,7 @@ const Pricing = () => {
               </div>
               {currentPlan === "pro" && (
                 <div className="flex items-center gap-1 text-xs text-primary">
-                  <Infinity className="h-4 w-4" /> Unlimited access
+                  <InfinityIcon className="h-4 w-4" /> Unlimited access
                 </div>
               )}
             </CardContent>

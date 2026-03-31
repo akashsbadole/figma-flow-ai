@@ -15,8 +15,14 @@ interface HistoryItem {
   id: string;
   type: string;
   prompt: string;
-  result: any;
-  metadata: any;
+  result: {
+    html?: string;
+    css?: string;
+    [key: string]: unknown;
+  };
+  metadata: {
+    [key: string]: unknown;
+  } | null;
   created_at: string;
 }
 
@@ -143,14 +149,21 @@ const History = () => {
 
   const loadHistory = async () => {
     setLoading(true);
-    const data = await api.getGenerationHistory();
-
-    if (data?.error) {
+    try {
+      const data = await api.getGenerationHistory();
+      if (Array.isArray(data)) {
+        setHistory(data);
+      } else {
+        console.error('History API returned non-array data:', data);
+        setHistory([]);
+      }
+    } catch (error) {
+      console.error('Failed to load history:', error);
       toast({ title: "Failed to load history", variant: "destructive" });
-    } else {
-      setHistory(data || []);
+      setHistory([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDelete = async (id: string) => {

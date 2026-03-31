@@ -92,3 +92,12 @@
 - [ ] Usage analytics dashboard
 - [ ] Custom domain support per project
 - [ ] Webhooks for design generation events
+
+## 🔧 Current Migration Tasks
+
+- [ ] **Remove Supabase Dependencies** — Clean up remaining Supabase references in frontend
+- [ ] **Update Pricing Page** — Replace Supabase subscription queries with custom API
+- [ ] **Update Password Reset** — Replace Supabase password reset with custom API
+- [ ] **Remove Supabase Integration Directory** — Delete `src/integrations/supabase/`
+- [ ] **Clean Package.json** — Remove `@supabase/supabase-js` dependency
+- [ ] **Test Migration** — Verify all functionality works with custom backend

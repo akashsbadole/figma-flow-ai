@@ -39,9 +39,25 @@ const Templates = () => {
 
   useEffect(() => {
     const fetchTemplates = async () => {
-      const data = await api.getTemplates();
-      if (data) setTemplates(data as Template[]);
-      setLoading(false);
+      try {
+        const data = await api.getTemplates();
+        if (Array.isArray(data)) {
+          setTemplates(data as Template[]);
+        } else {
+          console.error('Templates API returned non-array data:', data);
+          setTemplates([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch templates:', error);
+        toast({ 
+          title: "Error", 
+          description: "Failed to load templates. Please try again later.",
+          variant: "destructive"
+        });
+        setTemplates([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchTemplates();
   }, []);
@@ -49,8 +65,16 @@ const Templates = () => {
   useEffect(() => {
     if (!user) return;
     const fetchSaved = async () => {
-      const data = await api.getSavedTemplates();
-      if (data) setSavedIds(new Set(data.map((s: any) => s.id)));
+      try {
+        const data = await api.getSavedTemplates();
+        if (Array.isArray(data)) {
+          setSavedIds(new Set(data.map((s: { id: string }) => s.id)));
+        }
+      } catch (error) {
+        console.error('Failed to fetch saved templates:', error);
+        // Don't update savedIds on error - user will see templates as unsaved
+        // This is expected behavior when not authenticated
+      }
     };
     fetchSaved();
   }, [user]);
