@@ -4,8 +4,9 @@ import { Loader2 } from "lucide-react";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const isTestMode = typeof window !== 'undefined' && window.localStorage.getItem('test_mode') === 'true';
 
-  if (loading) {
+  if (loading && !isTestMode) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
