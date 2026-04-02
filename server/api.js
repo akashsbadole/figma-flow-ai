@@ -408,6 +408,30 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
   }
 });
 
+app.put('/api/projects/:id', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { name, description, type } = req.body;
+
+    const result = await pool.query(
+      `UPDATE public.projects
+       SET name = COALESCE($1, name), description = COALESCE($2, description),
+           type = COALESCE($3, type), updated_at = NOW()
+       WHERE id = $4 AND user_id = $5 RETURNING *`,
+      [name, description, type, req.params.id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, 'Project not found', 'NOT_FOUND');
+    }
+
+    successResponse(res, result.rows[0], 'Project updated');
+  } catch (error) {
+    console.error('API Error - /api/projects/:id (PUT):', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
 app.post('/api/projects', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId;
@@ -425,6 +449,32 @@ app.post('/api/projects', authMiddleware, async (req, res) => {
     successResponse(res, result.rows[0], 'Project created', 201);
   } catch (error) {
     console.error('API Error - /api/projects (POST):', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.put('/api/designs/:id', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { prompt, html_code, css_code, svg_code, image_url, metadata } = req.body;
+
+    const result = await pool.query(
+      `UPDATE public.designs
+       SET prompt = COALESCE($1, prompt), html_code = COALESCE($2, html_code),
+           css_code = COALESCE($3, css_code), svg_code = COALESCE($4, svg_code),
+           image_url = COALESCE($5, image_url), metadata = COALESCE($6, metadata),
+           updated_at = NOW()
+       WHERE id = $7 AND user_id = $8 RETURNING *`,
+      [prompt, html_code, css_code, svg_code, image_url, metadata, req.params.id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, 'Design not found', 'NOT_FOUND');
+    }
+
+    successResponse(res, result.rows[0], 'Design updated');
+  } catch (error) {
+    console.error('API Error - /api/designs/:id (PUT):', error);
     errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
   }
 });
