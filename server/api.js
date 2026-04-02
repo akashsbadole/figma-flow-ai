@@ -342,9 +342,15 @@ const createSupabaseUserForClerkUser = async (clerkId) => {
     const result = await pool.query('SELECT gen_random_uuid() as uuid');
     const supabaseId = result.rows[0].uuid;
 
+    // Create entry in users table first to satisfy foreign key constraints
+    await pool.query(
+      'INSERT INTO public.users (id, role) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
+      [supabaseId, 'user']
+    );
+
     // Insert the mapping
     await pool.query(
-      'INSERT INTO clerk_id_mapping (clerk_id, supabase_id) VALUES ($1, $2)',
+      'INSERT INTO clerk_id_mapping (clerk_id, supabase_id) VALUES ($1, $2) ON CONFLICT (clerk_id) DO UPDATE SET supabase_id = $2',
       [clerkId, supabaseId]
     );
 

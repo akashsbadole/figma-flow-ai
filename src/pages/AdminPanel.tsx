@@ -38,9 +38,25 @@ const AdminPanel = () => {
   const [filter, setFilter] = useState<UserFilter>("all");
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    checkAdmin();
-  }, [user]);
+  const loadUsers = async () => {
+    setLoading(true);
+    const data = await api.getAdminUsers();
+
+    if (data?.profiles) {
+      const adminSet = new Set((data.roles || []).map((r: any) => r.user_id));
+      setAdminIds(adminSet);
+
+      const subsMap = new Map((data.subscriptions || []).map((s: any) => [s.user_id, s]));
+      const enriched = (data.profiles || []).map((p: any) => ({
+        ...p,
+        subscription: subsMap.get(p.user_id),
+        isAdmin: adminSet.has(p.user_id),
+      }));
+
+      setUsers(enriched);
+    }
+    setLoading(false);
+  };
 
   const checkAdmin = async () => {
     if (!user) return;
@@ -61,25 +77,9 @@ const AdminPanel = () => {
     }
   };
 
-  const loadUsers = async () => {
-    setLoading(true);
-    const data = await api.getAdminUsers();
-
-    if (data?.profiles) {
-      const adminSet = new Set((data.roles || []).map((r: any) => r.user_id));
-      setAdminIds(adminSet);
-
-      const subsMap = new Map((data.subscriptions || []).map((s: any) => [s.user_id, s]));
-      const enriched = (data.profiles || []).map((p: any) => ({
-        ...p,
-        subscription: subsMap.get(p.user_id),
-        isAdmin: adminSet.has(p.user_id),
-      }));
-
-      setUsers(enriched);
-    }
-    setLoading(false);
-  };
+  useEffect(() => {
+    checkAdmin();
+  }, [user]);
 
   const toggleUserStatus = async (userId: string, currentEnabled: boolean) => {
     const result = await api.toggleUser(userId, !currentEnabled);
