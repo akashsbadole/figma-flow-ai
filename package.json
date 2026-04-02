@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "npx playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -82,11 +83,12 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@tailwindcss/typography": "^0.5.19",
+    "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.59.1",
+    "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^22.19.15",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^4.3.0",

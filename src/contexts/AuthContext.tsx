@@ -23,10 +23,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: clerkUser, isLoaded, isSignedIn } = useClerkUser();
+  const { user: clerkUser, isLoaded: clerkIsLoaded, isSignedIn: clerkIsSignedIn } = useClerkUser();
   const { signOut: clerkSignOut } = useClerkAuth();
 
-  const user: CustomUser | null = clerkUser ? {
+  // Support test mode for E2E testing
+  const isTestMode = typeof window !== 'undefined' && window.localStorage.getItem('test_mode') === 'true';
+  const isLoaded = clerkIsLoaded || isTestMode;
+  const isSignedIn = clerkIsSignedIn || (isTestMode && !!window.localStorage.getItem('clerk_user'));
+
+  let user: CustomUser | null = clerkUser ? {
     id: clerkUser.id,
     email: clerkUser.emailAddresses[0]?.emailAddress || "",
     display_name: clerkUser.fullName || clerkUser.username || clerkUser.emailAddresses[0]?.emailAddress || "",
@@ -35,13 +40,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     imageUrl: clerkUser.imageUrl || "",
   } : null;
 
+  // Fallback to localStorage user in test mode
+  if (!user && isTestMode) {
+    const stored = localStorage.getItem('clerk_user');
+    if (stored) {
+      try {
+        user = JSON.parse(stored);
+      } catch (e) {
+        console.error('Failed to parse test user', e);
+      }
+    }
+  }
+
   useEffect(() => {
-    if (user) {
+    if (user && !isTestMode) {
       localStorage.setItem('clerk_user', JSON.stringify(user));
-    } else {
+    } else if (!user && !isTestMode) {
       localStorage.removeItem('clerk_user');
     }
-  }, [user]);
+  }, [user, isTestMode]);
 
   const signIn = async (_email: string, _password: string) => {
     // Handled by Clerk
