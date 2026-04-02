@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Code, Download, Check, Loader2, LayoutTemplate, FileText, Database, Navigation } from "lucide-react";
+import { Code, Download, Check, Loader2, LayoutTemplate, FileText, Database, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TemplateItem {

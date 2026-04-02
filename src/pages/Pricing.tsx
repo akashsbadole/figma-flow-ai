@@ -77,9 +77,8 @@ const Pricing = () => {
 
       // Then create checkout session
       const { sessionUrl } = await api.createCheckoutSession(planId);
-      console.log("Stripe Checkout URL:", sessionUrl);
       if (sessionUrl) {
-        window.location.href = sessionUrl;
+        window.location.assign(sessionUrl);
       }
     } catch (error: any) {
       console.error('Upgrade failed:', error);

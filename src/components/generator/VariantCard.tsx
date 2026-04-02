@@ -92,7 +92,6 @@ export function VariantCard({
   };
 
   const scale = getScaleFactor();
-  const containerWidth = deviceWidth * scale;
   const containerHeight = deviceHeight * scale;
 
   const copyToFigma = async () => {
