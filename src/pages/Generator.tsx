@@ -4,9 +4,17 @@ import { api } from "@/integrations/neon/client";
 import { AppLayout } from "@/components/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Wand2, Palette, LayoutTemplate, PackageOpen } from "lucide-react";
+import { Sparkles, Wand2, Palette, LayoutTemplate, PackageOpen, Folder } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 import { PromptInput } from "@/components/generator/PromptInput";
 import { VariantCard } from "@/components/generator/VariantCard";
 import { ExpandedPreview } from "@/components/generator/ExpandedPreview";
@@ -48,6 +56,7 @@ const Generator = () => {
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [expandedVariant, setExpandedVariant] = useState<Variant | null>(null);
   const [currentPrompt, setCurrentPrompt] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const [designSystem, setDesignSystem] = useState<any>(null);
   const [dsLoading, setDsLoading] = useState(false);
@@ -104,9 +113,16 @@ const Generator = () => {
         if (data.variants?.length > 0) {
           setSelectedVariant(data.variants[0].id);
           await api.createDesign({
+            project_id: selectedProjectId || undefined,
             prompt,
             html_code: data.variants[0].html,
             css_code: data.variants[0].css,
+            svg_code: data.variants[0].svg,
+            metadata: {
+              deviceType,
+              variantCount: data.variants.length,
+              referenceImage: referenceImage ? true : false
+            }
           });
           await api.createGenerationHistory({
             type: "variant",
@@ -199,11 +215,36 @@ const Generator = () => {
   const anyLoading = generating || dsLoading || tplLoading;
   const hasResults = result || designSystem || screens.length > 0 || components.length > 0;
 
+  const { data: projects } = useQuery({
+    queryKey: ["projects", user?.id],
+    queryFn: () => api.getProjects(),
+    enabled: !!user,
+  });
+
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-3.5rem)]">
         {!hasResults && !anyLoading && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
+            <div className="absolute top-4 right-4 w-64 z-10">
+              <Select
+                value={selectedProjectId || "none"}
+                onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
+              >
+                <SelectTrigger className="w-full bg-card/50 border-border/50">
+                  <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Project</SelectItem>
+                  {projects?.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-3">
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Design at the speed of AI</h1>
               <p className="text-muted-foreground text-lg max-w-md mx-auto">
@@ -228,8 +269,29 @@ const Generator = () => {
 
         {hasResults && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-border/50">
-              <PromptInput onGenerate={handleGenerate} generating={generating} />
+            <div className="p-4 border-b border-border/50 flex flex-col md:flex-row items-center gap-4">
+              <div className="flex-1 w-full">
+                <PromptInput onGenerate={handleGenerate} generating={generating} />
+              </div>
+              <div className="w-full md:w-64">
+                <Select
+                  value={selectedProjectId || "none"}
+                  onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
+                >
+                  <SelectTrigger className="w-full bg-card/50 border-border/50">
+                    <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Project</SelectItem>
+                    {projects?.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Tabs defaultValue="variants" className="flex-1 flex flex-col overflow-hidden">

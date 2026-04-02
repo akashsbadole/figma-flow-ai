@@ -141,6 +141,7 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
             onClick={handleSubmit}
             disabled={!prompt.trim() || generating}
             size="sm"
+            aria-label="Generate design"
             className="gradient-primary text-primary-foreground rounded-lg px-4"
           >
             {generating ? (

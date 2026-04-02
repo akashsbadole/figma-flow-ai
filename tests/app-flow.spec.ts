@@ -46,7 +46,7 @@ test.describe('App Flow', () => {
 
   test('should navigate through the app and start generating', async ({ page }) => {
     // Navigate to generator directly
-    await page.goto('/generator');
+    await page.goto('http://localhost:8080/generator');
 
     // Check if Generator page is loaded
     await expect(page.locator('h1')).toContainText(/Design at the speed of AI/i);
@@ -109,7 +109,7 @@ test.describe('App Flow', () => {
     await expect(generateBtn).toBeEnabled();
 
     // Trigger generation
-    await generateBtn.click();
+    await page.getByLabel('Generate design').click();
 
     // Check if results are displayed (Variants tab should show (1))
     await expect(page.getByText(/Variants/i)).toBeVisible();

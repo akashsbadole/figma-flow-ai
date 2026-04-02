@@ -14,23 +14,6 @@ const ALLOWED_TYPES = [
   'application/pdf',
 ];
 
-export interface Asset {
-  id: string;
-  userId: string;
-  filename: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  createdAt: Date;
-}
-
-export interface UploadResult {
-  success: boolean;
-  asset?: Asset;
-  error?: string;
-}
-
 async function ensureUploadDir() {
   try {
     await fs.access(UPLOAD_DIR);
@@ -39,27 +22,27 @@ async function ensureUploadDir() {
   }
 }
 
-export function validateFileType(mimeType: string): boolean {
+export function validateFileType(mimeType) {
   return ALLOWED_TYPES.includes(mimeType);
 }
 
-export function validateFileSize(size: number): boolean {
+export function validateFileSize(size) {
   return size <= MAX_FILE_SIZE;
 }
 
-export function generateAssetId(): string {
+export function generateAssetId() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-export function getFileExtension(filename: string): string {
+export function getFileExtension(filename) {
   return path.extname(filename).toLowerCase();
 }
 
 export async function saveAsset(
-  buffer: Buffer,
-  assetId: string,
-  mimeType: string
-): Promise<string> {
+  buffer,
+  assetId,
+  mimeType
+) {
   await ensureUploadDir();
   
   const ext = getExtensionFromMimeType(mimeType);
@@ -71,12 +54,12 @@ export async function saveAsset(
   return `/uploads/${filename}`;
 }
 
-export function getAssetPath(assetId: string, mimeType: string): string {
+export function getAssetPath(assetId, mimeType) {
   const ext = getExtensionFromMimeType(mimeType);
   return path.join(UPLOAD_DIR, `${assetId}${ext}`);
 }
 
-export async function deleteAssetFile(assetId: string, mimeType: string): Promise<void> {
+export async function deleteAssetFile(assetId, mimeType) {
   const filepath = getAssetPath(assetId, mimeType);
   try {
     await fs.unlink(filepath);
@@ -85,8 +68,8 @@ export async function deleteAssetFile(assetId: string, mimeType: string): Promis
   }
 }
 
-function getExtensionFromMimeType(mimeType: string): string {
-  const mimeToExt: Record<string, string> = {
+function getExtensionFromMimeType(mimeType) {
+  const mimeToExt = {
     'image/jpeg': '.jpg',
     'image/png': '.png',
     'image/gif': '.gif',
@@ -97,14 +80,14 @@ function getExtensionFromMimeType(mimeType: string): string {
   return mimeToExt[mimeType] || '';
 }
 
-export function sanitizeFilename(filename: string): string {
+export function sanitizeFilename(filename) {
   return filename
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .replace(/_{2,}/g, '_')
     .substring(0, 255);
 }
 
-export function getAssetUrl(assetId: string, mimeType: string, baseUrl: string): string {
+export function getAssetUrl(assetId, mimeType, baseUrl) {
   const ext = getExtensionFromMimeType(mimeType);
   return `${baseUrl}/uploads/${assetId}${ext}`;
 }

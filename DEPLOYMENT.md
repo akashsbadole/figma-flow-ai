@@ -4,14 +4,14 @@
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
-│   React + Vite   │────▶│   Lovable Cloud       │────▶│  AI Gateway     │
-│   (Frontend)     │     │   (Backend)           │     │  (LLM Models)   │
+│   React + Vite   │────▶│   Node.js Express     │────▶│  AI Provider    │
+│   (Frontend)     │     │   (Backend API)       │     │  (Gemini/OpenAI)│
 │                  │     │                       │     │                 │
-│  • React 18      │     │  • PostgreSQL DB      │     │  • Gemini 2.5   │
-│  • TypeScript    │     │  • Auth (email/pass)  │     │    Flash        │
-│  • Tailwind CSS  │     │  • Edge Functions     │     │                 │
-│  • shadcn/ui     │     │  • Storage (designs)  │     │                 │
-│  • Framer Motion │     │  • RLS Policies       │     │                 │
+│  • React 18      │     │  • Neon PostgreSQL    │     │  • Gemini 1.5   │
+│  • TypeScript    │     │  • Clerk Auth         │     │    Flash        │
+│  • Tailwind CSS  │     │  • Stripe Payments    │     │                 │
+│  • shadcn/ui     │     │  • Rate Limiting      │     │                 │
+│  • Framer Motion │     │  • Helmet Security    │     │                 │
 └─────────────────┘     └──────────────────────┘     └─────────────────┘
 ```
 
@@ -33,7 +33,10 @@
 | Charts     | Recharts             | Data visualization               |
 | Export     | html2canvas          | PNG screenshot export            |
 | Toasts     | Sonner               | Notification system              |
-| Backend    | Lovable Cloud        | Database, auth, storage, functions |
+| Backend    | Node.js Express      | Database API, Auth, Stripe, AI     |
+| Database   | Neon PostgreSQL      | Managed Serverless PostgreSQL      |
+| Auth       | Clerk                | User Authentication & Management   |
+| Payments   | Stripe               | Subscription Billing               |
 | AI         | Lovable AI Gateway   | LLM-powered design generation    |
 | Icons      | Lucide React         | Icon system                      |
 | Theming    | next-themes          | Dark/light mode                  |

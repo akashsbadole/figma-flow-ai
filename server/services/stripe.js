@@ -41,21 +41,9 @@ export const PLANS = {
       'Team collaboration',
     ],
   },
-} as const;
+};
 
-export type PlanId = keyof typeof PLANS;
-
-export interface SubscriptionData {
-  userId: string;
-  planId: PlanId;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  status: 'active' | 'past_due' | 'cancelled' | 'trialing';
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-}
-
-export async function createStripeCustomer(email: string, userId: string): Promise<string> {
+export async function createStripeCustomer(email, userId) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
   
   if (!STRIPE_SECRET_KEY) {
@@ -83,10 +71,7 @@ export async function createStripeCustomer(email: string, userId: string): Promi
   return customer.id;
 }
 
-export async function createSubscription(customerId: string, priceId: string): Promise<{
-  subscriptionId: string;
-  clientSecret: string;
-}> {
+export async function createSubscription(customerId, priceId) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
   if (!STRIPE_SECRET_KEY) {
@@ -123,7 +108,7 @@ export async function createSubscription(customerId: string, priceId: string): P
   };
 }
 
-export async function cancelSubscription(subscriptionId: string): Promise<void> {
+export async function cancelSubscription(subscriptionId) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
   if (!STRIPE_SECRET_KEY) {
@@ -147,7 +132,7 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
   }
 }
 
-export async function reactivateSubscription(subscriptionId: string): Promise<void> {
+export async function reactivateSubscription(subscriptionId) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
   if (!STRIPE_SECRET_KEY) {
@@ -171,11 +156,7 @@ export async function reactivateSubscription(subscriptionId: string): Promise<vo
   }
 }
 
-export async function getSubscription(subscriptionId: string): Promise<{
-  status: string;
-  currentPeriodEnd: number;
-  cancelAtPeriodEnd: boolean;
-}> {
+export async function getSubscription(subscriptionId) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
   if (!STRIPE_SECRET_KEY) {
@@ -204,11 +185,11 @@ export async function getSubscription(subscriptionId: string): Promise<{
 }
 
 export async function createCheckoutSession(
-  customerId: string,
-  priceId: string,
-  successUrl: string,
-  cancelUrl: string
-): Promise<string> {
+  customerId,
+  priceId,
+  successUrl,
+  cancelUrl
+) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
   if (!STRIPE_SECRET_KEY) {
@@ -240,7 +221,7 @@ export async function createCheckoutSession(
   return session.url;
 }
 
-export function constructWebhookEvent(payload: string, signature: string, endpointSecret: string) {
+export function constructWebhookEvent(payload, signature, endpointSecret) {
   const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
   
   if (!STRIPE_SECRET_KEY) {
