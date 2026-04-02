@@ -27,14 +27,29 @@ export interface DesignVariant {
   name: string;
   html: string;
   css: string;
+  svg: string;
+  metadata?: {
+    extractedTokens?: {
+      colors: string[];
+      fonts: string[];
+      fontSizes: string[];
+    };
+  };
 }
 
 export interface DesignResponse {
   variants: DesignVariant[];
-  deviceType: string;
-  deviceWidth: number;
-  deviceHeight: number;
-  deviceLabel: string;
+  deviceType?: string;
+  deviceWidth?: number;
+  deviceHeight?: number;
+  deviceLabel?: string;
+  deviceInfo?: {
+    width: number;
+    height: number;
+    label: string;
+  };
+  designSystem?: any;
+  templates?: any;
 }
 
 export interface Template {
@@ -490,6 +505,16 @@ export const api = {
   async imageToDesign(data: { image: string; prompt: string }): Promise<DesignResponse> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/ai/image-to-design`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res) as Promise<DesignResponse>;
+  },
+
+  async generateFullDesign(data: { prompt: string; deviceType: string; variantCount?: number; referenceImage?: string }): Promise<DesignResponse> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/ai/generate-full-design`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

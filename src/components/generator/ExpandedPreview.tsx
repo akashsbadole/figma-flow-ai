@@ -1,14 +1,17 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces, Layers, Settings2, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { htmlCssToReactComponent } from "@/lib/export-utils";
 import { validateSVGForFigma, cleanSVGForFigma } from "@/lib/figma-svg-export";
 import { sanitizeCSS, sanitizeHTML } from "@/lib/sanitize-css";
+import html2canvas from "html2canvas";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LayersPanel } from "./LayersPanel";
+import { PropertiesPanel } from "./PropertiesPanel";
 
 interface Variant {
   id: string;
@@ -16,6 +19,13 @@ interface Variant {
   html: string;
   css: string;
   svg?: string;
+  metadata?: {
+    extractedTokens?: {
+      colors: string[];
+      fonts: string[];
+      fontSizes: string[];
+    };
+  };
 }
 
 interface ExpandedPreviewProps {
@@ -211,6 +221,35 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     URL.revokeObjectURL(url);
   };
 
+  const exportPNG = async () => {
+    if (!iframeRef.current || !iframeRef.current.contentDocument) return;
+
+    const doc = iframeRef.current.contentDocument;
+    const body = doc.body;
+
+    toast({ title: "Exporting PNG...", description: "Rendering design at 3x scale" });
+
+    try {
+      const canvas = await html2canvas(body, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+        width: deviceWidth,
+        height: deviceHeight
+      });
+
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${variant.name.replace(/\s+/g, "-").toLowerCase()}@3x.png`;
+      a.click();
+      toast({ title: "PNG Exported!" });
+    } catch (err) {
+      console.error("PNG export failed:", err);
+      toast({ title: "PNG Export failed", variant: "destructive" });
+    }
+  };
+
   const downloadCss = () => {
     const blob = new Blob([editedCss], { type: "text/css" });
     const url = URL.createObjectURL(blob);
@@ -299,45 +338,56 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex"
+      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex overflow-hidden"
       onClick={onClose}
     >
       <div
-        className="flex flex-1 gap-4 p-6 max-w-[95vw] max-h-[95vh] mx-auto my-auto"
+        className="flex flex-1 gap-4 p-6 w-full h-full max-w-[100vw] max-h-[100vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Preview side */}
         <div className="flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">{variant.name}</h2>
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold tracking-tight truncate max-w-[300px]">{variant.name}</h2>
+              <div className="h-4 w-px bg-border/40 hidden sm:block" />
+              <span className="text-xs text-muted-foreground uppercase font-mono">{deviceType}</span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
               <Button
                 variant={editMode ? "default" : "outline"}
                 size="sm"
                 onClick={enableDirectEdit}
-                className={editMode ? "gradient-primary text-primary-foreground" : ""}
+                className={cn("h-8 px-3 text-xs", editMode ? "gradient-primary text-primary-foreground border-0" : "")}
               >
-                <MousePointer className="h-4 w-4 mr-1" />
+                <MousePointer className="h-3.5 w-3.5 mr-1.5" />
                 {editMode ? "Save Edits" : "Direct Edit"}
               </Button>
-              <Button variant="outline" size="sm" onClick={copyToFigma}>
-                {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+              <Button variant="outline" size="sm" onClick={copyToFigma} className="h-8 px-3 text-xs">
+                {copied ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
                 Figma
               </Button>
-              <Button variant="outline" size="sm" onClick={downloadHtml}>
-                <Download className="h-4 w-4 mr-1" /> HTML
+
+              <div className="flex bg-muted/50 rounded-md p-0.5 border border-border/30">
+                <Button variant="ghost" size="sm" onClick={downloadHtml} className="h-7 px-2 text-[10px] uppercase font-bold tracking-wider">
+                  HTML
+                </Button>
+                <Button variant="ghost" size="sm" onClick={downloadCss} className="h-7 px-2 text-[10px] uppercase font-bold tracking-wider">
+                  CSS
+                </Button>
+                <Button variant="ghost" size="sm" onClick={downloadSvg} disabled={!variant.svg} className="h-7 px-2 text-[10px] uppercase font-bold tracking-wider">
+                  SVG
+                </Button>
+              </div>
+
+              <Button variant="outline" size="sm" onClick={copyAsReact} className="h-8 px-3 text-xs">
+                <Braces className="h-3.5 w-3.5 mr-1.5" /> React
               </Button>
-              <Button variant="outline" size="sm" onClick={downloadCss}>
-                <Code className="h-4 w-4 mr-1" /> CSS
-              </Button>
-              <Button variant="outline" size="sm" onClick={downloadSvg} disabled={!variant.svg}>
-                <FileDown className="h-4 w-4 mr-1" /> SVG
-              </Button>
-              <Button variant="outline" size="sm" onClick={copyAsReact}>
-                <Braces className="h-4 w-4 mr-1" /> React
-              </Button>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
+
+              <div className="w-px h-6 bg-border/40 mx-1 hidden sm:block" />
+
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
               </Button>
             </div>
           </div>
@@ -408,22 +458,40 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
           )}
         </div>
 
-        {/* Code panel */}
-        <div className="w-[380px] flex flex-col glass rounded-xl overflow-hidden">
+        {/* Inspection Panel */}
+        <div className="w-[380px] flex flex-col glass rounded-xl overflow-hidden relative z-[100]">
           <Tabs defaultValue="html" className="flex-1 flex flex-col">
-            <TabsList className="w-full justify-start rounded-none border-b border-border/50 bg-transparent px-2">
-              <TabsTrigger value="html">HTML</TabsTrigger>
-              <TabsTrigger value="css">CSS</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between border-b border-border/50 bg-transparent px-2">
+              <TabsList className="justify-start rounded-none bg-transparent border-0">
+                <TabsTrigger value="html" className="text-xs">HTML</TabsTrigger>
+                <TabsTrigger value="css" className="text-xs">CSS</TabsTrigger>
+                <TabsTrigger value="layers" className="text-xs flex items-center gap-1">
+                  <Layers className="h-3 w-3" /> Layers
+                </TabsTrigger>
+                <TabsTrigger value="props" className="text-xs flex items-center gap-1">
+                  <Settings2 className="h-3 w-3" /> Inspect
+                </TabsTrigger>
+              </TabsList>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportPNG} title="Export as PNG (3x)">
+                <ImageIcon className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
             <TabsContent value="html" className="flex-1 overflow-auto m-0 p-0">
-              <pre className="p-4 text-xs font-mono leading-relaxed text-muted-foreground overflow-auto h-full">
+              <pre className="p-4 text-xs font-mono leading-relaxed text-muted-foreground overflow-auto h-full bg-card/30">
                 <code>{editedHtml}</code>
               </pre>
             </TabsContent>
             <TabsContent value="css" className="flex-1 overflow-auto m-0 p-0">
-              <pre className="p-4 text-xs font-mono leading-relaxed text-muted-foreground overflow-auto h-full">
+              <pre className="p-4 text-xs font-mono leading-relaxed text-muted-foreground overflow-auto h-full bg-card/30">
                 <code>{editedCss}</code>
               </pre>
+            </TabsContent>
+            <TabsContent value="layers" className="flex-1 overflow-hidden m-0 p-0 bg-card/30">
+              <LayersPanel svgCode={variant.svg || ""} />
+            </TabsContent>
+            <TabsContent value="props" className="flex-1 overflow-hidden m-0 p-0 bg-card/30">
+              <PropertiesPanel tokens={variant.metadata?.extractedTokens} />
             </TabsContent>
           </Tabs>
         </div>

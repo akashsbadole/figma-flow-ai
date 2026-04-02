@@ -160,11 +160,41 @@ async function checkSchema() {
         tags TEXT[],
         html_code TEXT,
         css_code TEXT,
+        svg_code TEXT,
+        image_url TEXT,
+        metadata JSONB,
         preview_url TEXT,
         is_premium BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // Ensure all columns exist (for existing tables)
+    const columnsToAdd = [
+      { name: 'svg_code', type: 'TEXT' },
+      { name: 'image_url', type: 'TEXT' },
+      { name: 'metadata', type: 'JSONB' }
+    ];
+
+    for (const col of columnsToAdd) {
+      await pool.query(`ALTER TABLE public.templates ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+    }
+
+    // Remove NOT NULL from html_code and css_code if it exists
+    try {
+      await pool.query('ALTER TABLE public.templates ALTER COLUMN html_code DROP NOT NULL');
+      await pool.query('ALTER TABLE public.templates ALTER COLUMN css_code DROP NOT NULL');
+    } catch (e) {
+      // Ignored
+    }
+
+    // Add unique constraint to name if it doesn't exist
+    try {
+      await pool.query('ALTER TABLE public.templates ADD CONSTRAINT templates_name_key UNIQUE (name)');
+    } catch (e) {
+      // Constraint likely already exists
+    }
+
     console.log('✓ templates table verified');
 
     // 11. Ensure saved_templates table exists

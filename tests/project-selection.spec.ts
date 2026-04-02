@@ -19,7 +19,7 @@ test.describe('Project Selection in Generator', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: [mockProject] }) });
     });
 
-    await page.route('**/api/ai/generate-design', async (route) => {
+    await page.route('**/api/ai/generate-full-design', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -27,7 +27,9 @@ test.describe('Project Selection in Generator', () => {
           success: true,
           data: {
             variants: [{ id: 'v1', name: 'Variant 1', html: '<div>Design</div>', css: '', svg: '<svg></svg>' }],
-            deviceType: 'mobile'
+            deviceInfo: { width: 390, height: 844, label: 'Mobile' },
+            designSystem: {},
+            templates: { screens: [] }
           }
         })
       });
@@ -43,12 +45,6 @@ test.describe('Project Selection in Generator', () => {
     // Mock other required APIs
     await page.route('**/api/subscription', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { plan: 'free', generations_used: 0, generations_limit: 5 } }) });
-    });
-    await page.route('**/api/ai/generate-design-system', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { designSystem: {} } }) });
-    });
-    await page.route('**/api/ai/generate-templates', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { screens: [] } }) });
     });
     await page.route('**/api/generation-history', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
