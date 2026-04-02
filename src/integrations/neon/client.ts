@@ -214,13 +214,13 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 // Helper function to handle API responses
 async function handleResponse(res: Response): Promise<unknown> {
   const contentType = res.headers.get('content-type');
-  let data: unknown;
+  let body: any;
 
   try {
     if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
+      body = await res.json();
     } else {
-      data = await res.text();
+      body = await res.text();
     }
   } catch (e) {
     console.error('Failed to parse response:', e);
@@ -228,11 +228,21 @@ async function handleResponse(res: Response): Promise<unknown> {
   }
 
   if (!res.ok) {
-    console.error(`API Error ${res.status}:`, data);
-    throw new Error((data as Record<string, unknown>)?.error as string || `HTTP ${res.status}: ${res.statusText}`);
+    console.error(`API Error ${res.status}:`, body);
+    const errorMessage = body?.error?.message || body?.error || `HTTP ${res.status}: ${res.statusText}`;
+    throw new Error(errorMessage);
   }
 
-  return data;
+  // The backend uses a standardized response format: { success: true, data: ..., message: ... }
+  if (body && typeof body === 'object' && 'success' in body) {
+    if (body.success) {
+      return body.data;
+    } else {
+      throw new Error(body.error?.message || 'API request failed');
+    }
+  }
+
+  return body;
 }
 
 export const api = {

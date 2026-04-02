@@ -21,7 +21,7 @@ app.use(express.json({ limit: '50mb' }));
 const { Pool } = pg;
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || process.env.VITE_DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -83,13 +83,30 @@ function successResponse(res, data, message = 'Success', statusCode = 200) {
 // Centralized Auth Middleware
 async function authMiddleware(req, res, next) {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) {
+    const rawUserId = getUserId(req);
+    if (!rawUserId) {
       return errorResponse(res, 401, 'Unauthorized - Authentication required', 'UNAUTHORIZED');
     }
+
+    const userId = await resolveUserId(rawUserId);
+    if (!userId) {
+      return errorResponse(res, 401, 'Unauthorized - User not found', 'UNAUTHORIZED');
+    }
+
+    // Check if user is enabled
+    const profileResult = await pool.query(
+      'SELECT is_enabled FROM public.profiles WHERE user_id = $1',
+      [userId]
+    );
+
+    if (profileResult.rows.length > 0 && profileResult.rows[0].is_enabled === false) {
+      return errorResponse(res, 403, 'Your account has been disabled. Please contact support.', 'ACCOUNT_DISABLED');
+    }
+
     req.userId = userId;
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     return errorResponse(res, 401, 'Authentication failed', 'AUTH_FAILED');
   }
 }
@@ -97,17 +114,44 @@ async function authMiddleware(req, res, next) {
 // Admin Auth Middleware
 async function adminAuthMiddleware(req, res, next) {
   try {
-    const userId = await resolveUserId(getUserId(req));
+    const rawUserId = getUserId(req);
+    if (!rawUserId) {
+      return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    }
+
+    const userId = await resolveUserId(rawUserId);
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
     }
-    
+
+    // Check if user is enabled
+    const profileResult = await pool.query(
+      'SELECT is_enabled FROM public.profiles WHERE user_id = $1',
+      [userId]
+    );
+
+    if (profileResult.rows.length > 0 && profileResult.rows[0].is_enabled === false) {
+      return errorResponse(res, 403, 'Your account has been disabled. Please contact support.', 'ACCOUNT_DISABLED');
+    }
+
+    // Check if user is an admin in users table
     const adminCheck = await pool.query(
       'SELECT role FROM public.users WHERE id = $1',
       [userId]
     );
+
+    let isAdmin = adminCheck.rows.length > 0 && adminCheck.rows[0].role === 'admin';
+
+    if (!isAdmin) {
+      // Check user_roles table as well
+      const roleCheck = await pool.query(
+        "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
+        [userId]
+      );
+      isAdmin = roleCheck.rows.length > 0;
+    }
     
-    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'admin') {
+    if (!isAdmin) {
       return errorResponse(res, 403, 'Forbidden - Admin access required', 'FORBIDDEN');
     }
     
@@ -115,6 +159,7 @@ async function adminAuthMiddleware(req, res, next) {
     req.isAdmin = true;
     next();
   } catch (error) {
+    console.error('Admin auth middleware error:', error);
     return errorResponse(res, 500, 'Admin verification failed', 'ADMIN_CHECK_FAILED');
   }
 }
@@ -322,25 +367,29 @@ const resolveUserId = async (userId) => {
 
   // If it's a Clerk ID, look up or create the mapping
   if (isClerkId(userId)) {
-    // First try to find existing mapping
-    let supabaseId = await getSupabaseIdFromClerkId(userId);
+    try {
+      // First try to find existing mapping
+      let supabaseId = await getSupabaseIdFromClerkId(userId);
 
-    // If no mapping exists, create a new Supabase user
-    if (!supabaseId) {
-      supabaseId = await createSupabaseUserForClerkUser(userId);
+      // If no mapping exists, create a new Supabase user
+      if (!supabaseId) {
+        supabaseId = await createSupabaseUserForClerkUser(userId);
+      }
+
+      return supabaseId;
+    } catch (e) {
+      console.error('resolveUserId error:', e);
+      return null;
     }
-
-    return supabaseId;
   }
 
   // If it's not a Clerk ID and not a UUID, return as-is (fallback)
   return userId;
 };
 
-app.get('/api/projects', async (req, res) => {
+app.get('/api/projects', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'SELECT * FROM public.projects WHERE user_id = $1 ORDER BY updated_at DESC',
@@ -353,10 +402,9 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
-app.post('/api/projects', async (req, res) => {
+app.post('/api/projects', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { name, description, type } = req.body;
     
@@ -375,10 +423,9 @@ app.post('/api/projects', async (req, res) => {
   }
 });
 
-app.delete('/api/projects/:id', async (req, res) => {
+app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'DELETE FROM public.projects WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -396,10 +443,9 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
-app.get('/api/designs', async (req, res) => {
+app.get('/api/designs', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'SELECT * FROM public.designs WHERE user_id = $1 ORDER BY created_at DESC',
@@ -412,10 +458,9 @@ app.get('/api/designs', async (req, res) => {
   }
 });
 
-app.get('/api/designs/:id', async (req, res) => {
+app.get('/api/designs/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'SELECT * FROM public.designs WHERE id = $1 AND user_id = $2',
@@ -433,10 +478,9 @@ app.get('/api/designs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/designs', async (req, res) => {
+app.post('/api/designs', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { project_id, prompt, html_code, css_code, svg_code, image_url } = req.body;
     
@@ -456,10 +500,9 @@ app.post('/api/designs', async (req, res) => {
   }
 });
 
-app.delete('/api/designs/:id', async (req, res) => {
+app.delete('/api/designs/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'DELETE FROM public.designs WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -502,10 +545,9 @@ app.get('/api/templates/:id', async (req, res) => {
   }
 });
 
-app.get('/api/saved-templates', async (req, res) => {
+app.get('/api/saved-templates', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       `SELECT t.* FROM public.templates t
@@ -520,10 +562,9 @@ app.get('/api/saved-templates', async (req, res) => {
   }
 });
 
-app.post('/api/saved-templates', async (req, res) => {
+app.post('/api/saved-templates', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { template_id } = req.body;
     
@@ -545,10 +586,9 @@ app.post('/api/saved-templates', async (req, res) => {
   }
 });
 
-app.delete('/api/saved-templates/:templateId', async (req, res) => {
+app.delete('/api/saved-templates/:templateId', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const result = await pool.query(
       'DELETE FROM public.saved_templates WHERE user_id = $1 AND template_id = $2 RETURNING id',
@@ -566,11 +606,9 @@ app.delete('/api/saved-templates/:templateId', async (req, res) => {
   }
 });
 
-app.get('/api/design-systems', async (req, res) => {
+app.get('/api/design-systems', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
+    const userId = req.userId;
     const result = await pool.query(
       'SELECT * FROM public.design_systems WHERE user_id = $1 ORDER BY updated_at DESC',
       [userId]
@@ -582,17 +620,30 @@ app.get('/api/design-systems', async (req, res) => {
   }
 });
 
-app.post('/api/design-systems', async (req, res) => {
+app.get('/api/design-systems/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
+    const result = await pool.query(
+      'SELECT * FROM public.design_systems WHERE id = $1 AND user_id = $2',
+      [req.params.id, userId]
+    );
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, 'Design system not found', 'NOT_FOUND');
+    }
+    successResponse(res, result.rows[0], 'Design system retrieved');
+  } catch (error) {
+    console.error('API Error - /api/design-systems/:id:', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
 
+app.post('/api/design-systems', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
     const { project_id, name, colors, typography, spacing, components } = req.body;
-    
     if (!name || typeof name !== 'string') {
       return errorResponse(res, 400, 'Design system name is required', 'VALIDATION_ERROR');
     }
-
     const result = await pool.query(
       `INSERT INTO public.design_systems (user_id, project_id, name, colors, typography, spacing, components) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -605,10 +656,31 @@ app.post('/api/design-systems', async (req, res) => {
   }
 });
 
-app.get('/api/generation-history', async (req, res) => {
+app.put('/api/design-systems/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
+    const { name, colors, typography, spacing, components } = req.body;
+    const result = await pool.query(
+      `UPDATE public.design_systems
+       SET name = COALESCE($1, name), colors = COALESCE($2, colors),
+           typography = COALESCE($3, typography), spacing = COALESCE($4, spacing),
+           components = COALESCE($5, components), updated_at = NOW()
+       WHERE id = $6 AND user_id = $7 RETURNING *`,
+      [name, colors, typography, spacing, components, req.params.id, userId]
+    );
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, 'Design system not found', 'NOT_FOUND');
+    }
+    successResponse(res, result.rows[0], 'Design system updated');
+  } catch (error) {
+    console.error('API Error - /api/design-systems (PUT):', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.get('/api/generation-history', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
 
     const result = await pool.query(
       'SELECT * FROM public.generation_history WHERE user_id = $1 ORDER BY created_at DESC',
@@ -621,10 +693,9 @@ app.get('/api/generation-history', async (req, res) => {
   }
 });
 
-app.post('/api/generation-history', async (req, res) => {
+app.post('/api/generation-history', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { type, prompt, result, metadata } = req.body;
     
@@ -644,10 +715,26 @@ app.post('/api/generation-history', async (req, res) => {
   }
 });
 
-app.delete('/api/generation-history/:id', async (req, res) => {
+app.delete('/api/design-systems/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
+    const result = await pool.query(
+      'DELETE FROM public.design_systems WHERE id = $1 AND user_id = $2 RETURNING id',
+      [req.params.id, userId]
+    );
+    if (result.rows.length === 0) {
+      return errorResponse(res, 404, 'Design system not found', 'NOT_FOUND');
+    }
+    successResponse(res, { id: req.params.id }, 'Design system deleted');
+  } catch (error) {
+    console.error('API Error - /api/design-systems (DELETE):', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.delete('/api/generation-history/:id', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
 
     const result = await pool.query(
       'DELETE FROM public.generation_history WHERE id = $1 AND user_id = $2 RETURNING id',
@@ -665,10 +752,9 @@ app.delete('/api/generation-history/:id', async (req, res) => {
   }
 });
 
-app.get('/api/subscription', async (req, res) => {
+app.get('/api/subscription', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     let result = await pool.query(
       'SELECT * FROM public.user_subscriptions WHERE user_id = $1',
@@ -700,10 +786,9 @@ app.get('/api/subscription', async (req, res) => {
   }
 });
 
-app.post('/api/increment-usage', async (req, res) => {
+app.post('/api/increment-usage', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     await pool.query(
       'UPDATE public.user_subscriptions SET generations_used = generations_used + 1, updated_at = now() WHERE user_id = $1',
@@ -716,17 +801,8 @@ app.post('/api/increment-usage', async (req, res) => {
   }
 });
 
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT * FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) return errorResponse(res, 403, 'Forbidden - Admin access required', 'FORBIDDEN');
-
     const profiles = await pool.query('SELECT * FROM public.profiles');
     const subscriptions = await pool.query('SELECT * FROM public.user_subscriptions');
     const roles = await pool.query('SELECT * FROM public.user_roles');
@@ -738,17 +814,8 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
-app.post('/api/admin/update-role', async (req, res) => {
+app.post('/api/admin/update-role', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT * FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) return errorResponse(res, 403, 'Forbidden - Admin access required', 'FORBIDDEN');
-
     const { user_id, role } = req.body;
     
     if (!user_id || !role) {
@@ -766,17 +833,8 @@ app.post('/api/admin/update-role', async (req, res) => {
   }
 });
 
-app.post('/api/admin/update-subscription', async (req, res) => {
+app.post('/api/admin/update-subscription', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT * FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) return errorResponse(res, 403, 'Forbidden - Admin access required', 'FORBIDDEN');
-
     const { user_id, plan, status, generations_limit } = req.body;
     
     if (!user_id) {
@@ -794,17 +852,8 @@ app.post('/api/admin/update-subscription', async (req, res) => {
   }
 });
 
-app.post('/api/admin/toggle-user', async (req, res) => {
+app.post('/api/admin/toggle-user', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT * FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) return errorResponse(res, 403, 'Forbidden - Admin access required', 'FORBIDDEN');
-
     const { user_id, is_enabled } = req.body;
     
     if (!user_id || typeof is_enabled !== 'boolean') {
@@ -822,10 +871,9 @@ app.post('/api/admin/toggle-user', async (req, res) => {
   }
 });
 
-app.post('/api/profile', async (req, res) => {
+app.post('/api/profile', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { display_name, avatar_url } = req.body;
 
@@ -851,10 +899,9 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
-app.get('/api/profile', async (req, res) => {
+app.get('/api/profile', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     let result = await pool.query('SELECT * FROM public.profiles WHERE user_id = $1', [userId]);
 
@@ -880,10 +927,9 @@ app.get('/api/profile', async (req, res) => {
   }
 });
 
-app.post('/api/ai/generate-design', async (req, res) => {
+app.post('/api/ai/generate-design', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { prompt, deviceType, variantCount = 4 } = req.body;
 
@@ -964,10 +1010,9 @@ Make sure each SVG is valid, complete, and will paste directly into Figma as edi
   }
 });
 
-app.post('/api/ai/generate-design-system', async (req, res) => {
+app.post('/api/ai/generate-design-system', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { prompt } = req.body;
 
@@ -1004,10 +1049,9 @@ Return JSON with:
   }
 });
 
-app.post('/api/ai/generate-templates', async (req, res) => {
+app.post('/api/ai/generate-templates', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { prompt, deviceType } = req.body;
 
@@ -1041,10 +1085,9 @@ Return JSON with arrays of templates:
   }
 });
 
-app.post('/api/ai/image-to-design', async (req, res) => {
+app.post('/api/ai/image-to-design', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { image, prompt } = req.body;
 
@@ -1298,10 +1341,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-app.post('/api/auth/request-email-verification', async (req, res) => {
+app.post('/api/auth/request-email-verification', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
     
     const userResult = await pool.query(
       'SELECT email FROM public.users WHERE id = $1',
@@ -1386,10 +1428,9 @@ app.post('/api/auth/verify-email', async (req, res) => {
   }
 });
 
-app.get('/api/auth/check-verification', async (req, res) => {
+app.get('/api/auth/check-verification', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
     
     const result = await pool.query(
       'SELECT email_verified FROM public.profiles WHERE user_id = $1',
@@ -1420,10 +1461,9 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
-app.get('/api/auth/sessions', async (req, res) => {
+app.get('/api/auth/sessions', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
     
     const result = await pool.query(
       'SELECT id, created_at, last_activity, expires_at FROM public.user_sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY last_activity DESC',
@@ -1437,10 +1477,9 @@ app.get('/api/auth/sessions', async (req, res) => {
   }
 });
 
-app.delete('/api/auth/sessions/:id', async (req, res) => {
+app.delete('/api/auth/sessions/:id', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
     
     await pool.query(
       'DELETE FROM public.user_sessions WHERE id = $1 AND user_id = $2',
@@ -1468,10 +1507,9 @@ app.get('/api/payment/config', (req, res) => {
   });
 });
 
-app.post('/api/payment/create-customer', async (req, res) => {
+app.post('/api/payment/create-customer', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const userResult = await pool.query('SELECT email FROM public.users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
@@ -1508,10 +1546,9 @@ app.post('/api/payment/create-customer', async (req, res) => {
   }
 });
 
-app.post('/api/payment/create-checkout-session', async (req, res) => {
+app.post('/api/payment/create-checkout-session', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const { planId } = req.body;
     if (!planId || !['pro', 'enterprise'].includes(planId)) {
@@ -1553,10 +1590,9 @@ app.post('/api/payment/create-checkout-session', async (req, res) => {
   }
 });
 
-app.post('/api/payment/cancel-subscription', async (req, res) => {
+app.post('/api/payment/cancel-subscription', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const subscriptionResult = await pool.query(
       'SELECT stripe_subscription_id FROM public.user_subscriptions WHERE user_id = $1 AND stripe_subscription_id IS NOT NULL',
@@ -1581,10 +1617,9 @@ app.post('/api/payment/cancel-subscription', async (req, res) => {
   }
 });
 
-app.post('/api/payment/reactivate-subscription', async (req, res) => {
+app.post('/api/payment/reactivate-subscription', authMiddleware, async (req, res) => {
   try {
-    const userId = await resolveUserId(getUserId(req));
-    if (!userId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
+    const userId = req.userId;
 
     const subscriptionResult = await pool.query(
       'SELECT stripe_subscription_id FROM public.user_subscriptions WHERE user_id = $1 AND stripe_subscription_id IS NOT NULL',
@@ -1712,18 +1747,8 @@ app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), asyn
 });
 
 // Admin Analytics Endpoints
-app.get('/api/admin/analytics/overview', async (req, res) => {
+app.get('/api/admin/analytics/overview', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) {
-      return errorResponse(res, 403, 'Forbidden', 'FORBIDDEN');
-    }
 
     const [
       totalUsers,
@@ -1788,18 +1813,8 @@ app.get('/api/admin/analytics/overview', async (req, res) => {
   }
 });
 
-app.get('/api/admin/analytics/usage', async (req, res) => {
+app.get('/api/admin/analytics/usage', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) {
-      return errorResponse(res, 403, 'Forbidden', 'FORBIDDEN');
-    }
 
     const { period = '7d' } = req.query;
     let interval;
@@ -1857,18 +1872,8 @@ app.get('/api/admin/analytics/usage', async (req, res) => {
   }
 });
 
-app.get('/api/admin/analytics/revenue', async (req, res) => {
+app.get('/api/admin/analytics/revenue', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) {
-      return errorResponse(res, 403, 'Forbidden', 'FORBIDDEN');
-    }
 
     const [
       subscriptionCounts,
@@ -1922,18 +1927,8 @@ app.get('/api/admin/analytics/revenue', async (req, res) => {
   }
 });
 
-app.get('/api/admin/system/health', async (req, res) => {
+app.get('/api/admin/system/health', adminAuthMiddleware, async (req, res) => {
   try {
-    const adminUserId = await resolveUserId(getUserId(req));
-    if (!adminUserId) return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
-
-    const roleCheck = await pool.query(
-      "SELECT role FROM public.user_roles WHERE user_id = $1 AND role = 'admin'",
-      [adminUserId]
-    );
-    if (roleCheck.rows.length === 0) {
-      return errorResponse(res, 403, 'Forbidden', 'FORBIDDEN');
-    }
 
     const dbResult = await pool.query('SELECT 1 as status');
     const dbHealthy = dbResult.rows.length > 0;
