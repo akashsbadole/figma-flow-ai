@@ -151,55 +151,24 @@ export interface ApiError {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-  // Helper function to get auth header from Clerk
-  async function getAuthHeaderAsync(): Promise<{ 'x-user-id': string } | { authorization: string }> {
-    console.log('Getting auth header from Clerk...');
-
-    // Try multiple methods to get Clerk instance
-    if (typeof window !== 'undefined') {
-      // Method 1: Try window.Clerk (standard)
-      try {
-        const clerk = window.Clerk as { user?: { id: string } } | undefined;
-        if (clerk?.user?.id) {
-          console.log('Found Clerk user via window.Clerk:', clerk.user.id);
-          return { 'x-user-id': clerk.user.id };
-        }
-      } catch (e) {
-        console.warn('Error accessing window.Clerk:', e);
+// Helper function to get auth header from Clerk
+async function getAuthHeaderAsync(): Promise<{ 'x-user-id': string } | { authorization: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const clerk = (window as any).Clerk || (window as any).__clerk;
+      if (clerk?.user?.id) {
+        return { 'x-user-id': clerk.user.id };
       }
-
-      // Method 2: Try window.__clerk (internal)
-      try {
-        const clerk = window.__clerk as { user?: { id: string } } | undefined;
-        if (clerk?.user?.id) {
-          console.log('Found Clerk user via window.__clerk:', clerk.user.id);
-          return { 'x-user-id': clerk.user.id };
-        }
-      } catch (e) {
-        console.warn('Error accessing window.__clerk:', e);
-      }
-
-      // Method 3: Check for Clerk in various locations
-      try {
-        const clerk = (window.Clerk as { user?: { id: string } } | undefined) ||
-                      (window.__clerk as { user?: { id: string } } | undefined) ||
-                      (window.clerk as { user?: { id: string } } | undefined);
-        if (clerk?.user?.id) {
-          console.log('Found Clerk user via fallback:', clerk.user.id);
-          return { 'x-user-id': clerk.user.id };
-        }
-      } catch (e) {
-        console.warn('Error accessing Clerk via fallback:', e);
-      }
+    } catch (e) {
+      console.warn('Error accessing Clerk:', e);
     }
+  }
 
-  // Fallback to localStorage
   try {
     const stored = localStorage.getItem('clerk_user');
     if (stored) {
-      const user = JSON.parse(stored) as { id?: string };
-      if (user.id) {
-        console.log('Found user in localStorage:', user.id);
+      const user = JSON.parse(stored);
+      if (user?.id) {
         return { 'x-user-id': user.id };
       }
     }
@@ -207,20 +176,20 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     console.warn('Error accessing localStorage:', e);
   }
 
-  console.error('No authentication found - user might not be signed in');
+  console.error('No authentication found');
   throw new Error('Authentication required. Please sign in.');
 }
 
 // Helper function to handle API responses
 async function handleResponse(res: Response): Promise<unknown> {
   const contentType = res.headers.get('content-type');
-  let data: unknown;
+  let body: any;
 
   try {
     if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
+      body = await res.json();
     } else {
-      data = await res.text();
+      body = await res.text();
     }
   } catch (e) {
     console.error('Failed to parse response:', e);
@@ -228,11 +197,19 @@ async function handleResponse(res: Response): Promise<unknown> {
   }
 
   if (!res.ok) {
-    console.error(`API Error ${res.status}:`, data);
-    throw new Error((data as Record<string, unknown>)?.error as string || `HTTP ${res.status}: ${res.statusText}`);
+    const errorMessage = body?.error?.message || body?.error || `HTTP ${res.status}: ${res.statusText}`;
+    throw new Error(errorMessage);
   }
 
-  return data;
+  if (body && typeof body === 'object' && 'success' in body) {
+    if (body.success) {
+      return body.data;
+    } else {
+      throw new Error(body.error?.message || 'API request failed');
+    }
+  }
+
+  return body;
 }
 
 export const api = {
@@ -252,13 +229,23 @@ export const api = {
     return handleResponse(res) as Promise<Project>;
   },
 
-  async deleteProject(id: string): Promise<{ success: boolean }> {
+  async updateProject(id: string, data: { name?: string; description?: string; type?: string }): Promise<Project> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/projects/${id}`, {
+      method: 'PUT',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res) as Promise<Project>;
+  },
+
+  async deleteProject(id: string): Promise<{ id: string }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/projects/${id}`, {
       method: 'DELETE',
       headers: authHeader,
     });
-    return handleResponse(res) as Promise<{ success: boolean }>;
+    return handleResponse(res) as Promise<{ id: string }>;
   },
 
   async getDesigns(): Promise<Design[]> {
@@ -283,13 +270,23 @@ export const api = {
     return handleResponse(res) as Promise<Design>;
   },
 
-  async deleteDesign(id: string): Promise<{ success: boolean }> {
+  async updateDesign(id: string, data: { prompt?: string; html_code?: string; css_code?: string; svg_code?: string; image_url?: string; metadata?: object }): Promise<Design> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/designs/${id}`, {
+      method: 'PUT',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res) as Promise<Design>;
+  },
+
+  async deleteDesign(id: string): Promise<{ id: string }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/designs/${id}`, {
       method: 'DELETE',
       headers: authHeader,
     });
-    return handleResponse(res) as Promise<{ success: boolean }>;
+    return handleResponse(res) as Promise<{ id: string }>;
   },
 
   async getTemplates(): Promise<Template[]> {
@@ -318,19 +315,25 @@ export const api = {
     return handleResponse(res) as Promise<SavedTemplate>;
   },
 
-  async unsaveTemplate(templateId: string): Promise<{ success: boolean }> {
+  async unsaveTemplate(templateId: string): Promise<{ template_id: string }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/saved-templates/${templateId}`, {
       method: 'DELETE',
       headers: authHeader,
     });
-    return handleResponse(res) as Promise<{ success: boolean }>;
+    return handleResponse(res) as Promise<{ template_id: string }>;
   },
 
   async getDesignSystems(): Promise<DesignSystem[]> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/design-systems`, { headers: authHeader });
     return handleResponse(res) as Promise<DesignSystem[]>;
+  },
+
+  async getDesignSystem(id: string): Promise<DesignSystem | null> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/design-systems/${id}`, { headers: authHeader });
+    return handleResponse(res) as Promise<DesignSystem | null>;
   },
 
   async createDesignSystem(data: { project_id?: string; name: string; colors?: object; typography?: object; spacing?: object; components?: object }): Promise<DesignSystem> {
@@ -341,6 +344,25 @@ export const api = {
       body: JSON.stringify(data),
     });
     return handleResponse(res) as Promise<DesignSystem>;
+  },
+
+  async updateDesignSystem(id: string, data: { name?: string; colors?: object; typography?: object; spacing?: object; components?: object }): Promise<DesignSystem> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/design-systems/${id}`, {
+      method: 'PUT',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res) as Promise<DesignSystem>;
+  },
+
+  async deleteDesignSystem(id: string): Promise<{ id: string }> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/design-systems/${id}`, {
+      method: 'DELETE',
+      headers: authHeader,
+    });
+    return handleResponse(res) as Promise<{ id: string }>;
   },
 
   async getGenerationHistory(): Promise<GenerationHistory[]> {
@@ -359,13 +381,13 @@ export const api = {
     return handleResponse(res) as Promise<GenerationHistory>;
   },
 
-  async deleteGenerationHistory(id: string): Promise<{ success: boolean }> {
+  async deleteGenerationHistory(id: string): Promise<{ id: string }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/generation-history/${id}`, {
       method: 'DELETE',
       headers: authHeader,
     });
-    return handleResponse(res) as Promise<{ success: boolean }>;
+    return handleResponse(res) as Promise<{ id: string }>;
   },
 
   async getSubscription(): Promise<Subscription> {
@@ -374,29 +396,29 @@ export const api = {
     return handleResponse(res) as Promise<Subscription>;
   },
 
-  async incrementUsage(): Promise<Subscription> {
+  async incrementUsage(): Promise<null> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/increment-usage`, {
       method: 'POST',
       headers: authHeader,
     });
-    return handleResponse(res) as Promise<Subscription>;
+    return handleResponse(res) as Promise<null>;
   },
 
-  async getAdminUsers(): Promise<AdminUser[]> {
+  async getAdminUsers(): Promise<{ profiles: any[]; subscriptions: any[]; roles: any[] }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/admin/users`, { headers: authHeader });
-    return handleResponse(res) as Promise<AdminUser[]>;
+    return handleResponse(res) as Promise<{ profiles: any[]; subscriptions: any[]; roles: any[] }>;
   },
 
-  async updateUserRole(userId: string, role: string): Promise<AdminUser> {
+  async updateUserRole(userId: string, role: string): Promise<{ user_id: string; role: string }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/admin/update-role`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, role }),
     });
-    return handleResponse(res) as Promise<AdminUser>;
+    return handleResponse(res) as Promise<{ user_id: string; role: string }>;
   },
 
   async updateSubscription(userId: string, data: { plan: string; status: string; generations_limit: number }): Promise<AdminUser> {
@@ -409,14 +431,14 @@ export const api = {
     return handleResponse(res) as Promise<AdminUser>;
   },
 
-  async toggleUser(userId: string, isEnabled: boolean): Promise<AdminUser> {
+  async toggleUser(userId: string, isEnabled: boolean): Promise<{ user_id: string; is_enabled: boolean }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/admin/toggle-user`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, is_enabled: isEnabled }),
     });
-    return handleResponse(res) as Promise<AdminUser>;
+    return handleResponse(res) as Promise<{ user_id: string; is_enabled: boolean }>;
   },
 
   async updateProfile(data: { display_name?: string; avatar_url?: string }): Promise<UserProfile> {
@@ -445,24 +467,24 @@ export const api = {
     return handleResponse(res) as Promise<DesignResponse>;
   },
 
-  async generateDesignSystem(data: { prompt: string }): Promise<DesignSystem> {
+  async generateDesignSystem(data: { prompt: string }): Promise<{ designSystem: any }> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/ai/generate-design-system`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse(res) as Promise<DesignSystem>;
+    return handleResponse(res) as Promise<{ designSystem: any }>;
   },
 
-  async generateTemplates(data: { prompt: string; deviceType: string }): Promise<Template[]> {
+  async generateTemplates(data: { prompt: string; deviceType: string }): Promise<any> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/ai/generate-templates`, {
       method: 'POST',
       headers: { ...authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse(res) as Promise<Template[]>;
+    return handleResponse(res) as Promise<any>;
   },
 
   async imageToDesign(data: { image: string; prompt: string }): Promise<DesignResponse> {

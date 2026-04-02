@@ -102,11 +102,13 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: Space Grotesk, system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -131,6 +133,8 @@
     box-shadow: var(--shadow-elevated);
   }
   .glass {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+    background-color: hsla(var(--card), 0.8);
+    backdrop-filter: blur(24px);
+    border: 1px solid hsla(var(--border), 0.5);
   }
 }
