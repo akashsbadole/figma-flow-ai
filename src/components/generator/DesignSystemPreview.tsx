@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Palette, Copy, Check, Download, Grid3X3, Type, Move, Layers,
-  Zap, Monitor, Accessibility, FolderTree, MousePointerClick, Eye, Code,
+  Zap, Monitor, MousePointerClick, Eye, Code,
   Moon, Box, Play
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Crown, Check, Sparkles, Shield, Infinity as InfinityIcon } from "lucide-react";
 import { api } from "@/integrations/neon/client";
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 const plans = [
   {
@@ -45,6 +46,7 @@ const plans = [
 
 const Pricing = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: subscription } = useQuery({
     queryKey: ["subscription", user?.id],
@@ -62,6 +64,27 @@ const Pricing = () => {
   });
 
   const currentPlan = subscription?.plan || "free";
+
+  const handleUpgrade = async (planId: string) => {
+    if (!user) {
+      toast({ title: "Authentication required", description: "Please sign in to upgrade.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // First ensure customer exists
+      await api.createStripeCustomer();
+
+      // Then create checkout session
+      const { sessionUrl } = await api.createCheckoutSession(planId);
+      if (sessionUrl) {
+        window.location.assign(sessionUrl);
+      }
+    } catch (error: any) {
+      console.error('Upgrade failed:', error);
+      toast({ title: "Upgrade failed", description: error.message, variant: "destructive" });
+    }
+  };
 
   return (
     <AppLayout>
@@ -102,12 +125,13 @@ const Pricing = () => {
                   <Button
                     className={`w-full ${plan.popular ? "gradient-primary text-primary-foreground" : ""}`}
                     variant={plan.popular ? "default" : "outline"}
-                    disabled={currentPlan === plan.id || plan.id === "pro"}
+                    disabled={currentPlan === plan.id}
+                    onClick={() => plan.id !== "free" && handleUpgrade(plan.id)}
                   >
                     {currentPlan === plan.id
                       ? "Current Plan"
                       : plan.id === "pro"
-                      ? "Coming Soon"
+                      ? "Upgrade to Pro"
                       : "Free Plan"}
                   </Button>
                 </CardContent>

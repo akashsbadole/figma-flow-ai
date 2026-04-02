@@ -260,7 +260,7 @@ function isRetryableError(error) {
 
 // Image analysis with AI
 async function analyzeImageWithAI(image, prompt, options = {}) {
-  const { temperature = 0.7 } = options;
+  const { temperature = 0.7, systemPrompt } = options;
 
   switch (AI_PROVIDER) {
     case 'gemini':
@@ -270,7 +270,7 @@ async function analyzeImageWithAI(image, prompt, options = {}) {
         contents: [{
           role: 'user',
           parts: [
-            { text: prompt },
+            { text: `${systemPrompt ? `${systemPrompt}\n\n` : ""}${prompt}` },
             { inlineData: { data: imageData, mimeType: 'image/jpeg' } }
           ]
         }],
@@ -538,16 +538,26 @@ app.post('/api/designs', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId;
 
-    const { project_id, prompt, html_code, css_code, svg_code, image_url } = req.body;
+    const { project_id, prompt, html_code, css_code, svg_code, image_url, metadata } = req.body;
     
     if (!prompt || typeof prompt !== 'string') {
       return errorResponse(res, 400, 'Prompt is required', 'VALIDATION_ERROR');
     }
 
+    if (project_id) {
+      const projectCheck = await pool.query(
+        'SELECT id FROM public.projects WHERE id = $1 AND user_id = $2',
+        [project_id, userId]
+      );
+      if (projectCheck.rows.length === 0) {
+        return errorResponse(res, 403, 'Forbidden - Project not found or access denied', 'FORBIDDEN');
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO public.designs (user_id, project_id, prompt, html_code, css_code, svg_code, image_url) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [userId, project_id, prompt, html_code, css_code, svg_code, image_url]
+      `INSERT INTO public.designs (user_id, project_id, prompt, html_code, css_code, svg_code, image_url, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [userId, project_id, prompt, html_code, css_code, svg_code, image_url, metadata]
     );
     successResponse(res, result.rows[0], 'Design created', 201);
   } catch (error) {
@@ -700,6 +710,17 @@ app.post('/api/design-systems', authMiddleware, async (req, res) => {
     if (!name || typeof name !== 'string') {
       return errorResponse(res, 400, 'Design system name is required', 'VALIDATION_ERROR');
     }
+
+    if (project_id) {
+      const projectCheck = await pool.query(
+        'SELECT id FROM public.projects WHERE id = $1 AND user_id = $2',
+        [project_id, userId]
+      );
+      if (projectCheck.rows.length === 0) {
+        return errorResponse(res, 403, 'Forbidden - Project not found or access denied', 'FORBIDDEN');
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO public.design_systems (user_id, project_id, name, colors, typography, spacing, components) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -987,7 +1008,7 @@ app.post('/api/ai/generate-design', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId;
 
-    const { prompt, deviceType, variantCount = 4 } = req.body;
+    const { prompt, deviceType, variantCount = 4, referenceImage } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return errorResponse(res, 400, 'Prompt is required and must be a non-empty string', 'VALIDATION_ERROR');
@@ -1038,6 +1059,7 @@ Focus on clean, modern designs with good contrast, proper spacing, and professio
 
     const userPrompt = `Create ${variantCount} UI design variants for: "${prompt}"
 Device: ${device.label} (${device.width}x${device.height})
+${referenceImage ? "I have also provided a reference image to guide the style and layout." : ""}
 
 Respond in JSON format:
 {
@@ -1048,10 +1070,15 @@ Respond in JSON format:
 
 Make sure each SVG is valid, complete, and will paste directly into Figma as editable vector layers.`;
 
-    const result = await chatWithAI([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ]);
+    let result;
+    if (referenceImage) {
+      result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
+    } else {
+      result = await chatWithAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+    }
 
     successResponse(res, {
       ...result,

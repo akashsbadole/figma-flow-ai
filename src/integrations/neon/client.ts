@@ -260,7 +260,7 @@ export const api = {
     return handleResponse(res) as Promise<Design | null>;
   },
 
-  async createDesign(data: { project_id?: string; prompt: string; html_code?: string; css_code?: string; svg_code?: string; image_url?: string }): Promise<Design> {
+  async createDesign(data: { project_id?: string; prompt: string; html_code?: string; css_code?: string; svg_code?: string; image_url?: string; metadata?: object }): Promise<Design> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/designs`, {
       method: 'POST',
@@ -457,7 +457,7 @@ export const api = {
     return handleResponse(res) as Promise<UserProfile>;
   },
 
-  async generateDesign(data: { prompt: string; deviceType: string; variantCount?: number }): Promise<DesignResponse> {
+  async generateDesign(data: { prompt: string; deviceType: string; variantCount?: number; referenceImage?: string }): Promise<DesignResponse> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/ai/generate-design`, {
       method: 'POST',
@@ -495,5 +495,24 @@ export const api = {
       body: JSON.stringify(data),
     });
     return handleResponse(res) as Promise<DesignResponse>;
+  },
+
+  async createCheckoutSession(planId: string): Promise<{ sessionUrl: string }> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/payment/create-checkout-session`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ planId }),
+    });
+    return handleResponse(res) as Promise<{ sessionUrl: string }>;
+  },
+
+  async createStripeCustomer(): Promise<{ customerId: string }> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/payment/create-customer`, {
+      method: 'POST',
+      headers: authHeader,
+    });
+    return handleResponse(res) as Promise<{ customerId: string }>;
   },
 };

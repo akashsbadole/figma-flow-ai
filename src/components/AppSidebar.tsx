@@ -39,7 +39,6 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -47,7 +46,6 @@ export function AppSidebar() {
       api.getAdminUsers()
         .then((data) => {
           if (data?.profiles) {
-            const currentUser = data.profiles.find((p: any) => p.user_id === user.id);
             const userRole = data.roles?.find((r: any) => r.user_id === user.id && r.role === 'admin');
             setIsAdmin(!!userRole);
           }
