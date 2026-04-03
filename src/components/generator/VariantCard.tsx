@@ -14,6 +14,13 @@ interface Variant {
   html: string;
   css: string;
   svg?: string;
+  metadata?: {
+    extractedTokens?: {
+      colors: string[];
+      fonts: string[];
+      fontSizes: string[];
+    };
+  };
 }
 
 interface VariantCardProps {

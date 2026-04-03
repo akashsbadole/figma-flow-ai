@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import { processSVG, extractTokensFromSVG } from './utils/svg_processor.js';
 
 // Load environment variables
 dotenv.config();
@@ -1035,27 +1036,34 @@ app.post('/api/ai/generate-design', authMiddleware, async (req, res) => {
     };
     const device = deviceConfig[deviceType] || deviceConfig.mobile;
 
-    const systemPrompt = `You are an expert UI designer. Generate a beautiful, modern UI design based on the user's prompt. 
-Return a JSON response with exactly ${variantCount} variants. Each variant should have:
-- id: unique identifier
-- name: descriptive name
-- html: complete, semantic HTML with Tailwind-like classes
-- css: additional custom CSS if needed
-- svg: A native SVG representation of the design using only SVG elements (<rect>, <text>, <circle>, <path>, <g>, <linearGradient>)
+    const systemPrompt = `You are an expert UI designer. Generate beautiful, modern designs based on the user's prompt.
+Return a JSON response with exactly ${variantCount} variants.
 
-IMPORTANT SVG RULES:
-- The SVG must be a complete standalone SVG with viewBox="0 0 ${device.width} ${device.height}"
-- Use native SVG elements only: <text>, <rect>, <circle>, <line>, <path>, <g>, <linearGradient>, <radialGradient>
-- NO foreignObject, NO embedded HTML, NO <style> tags
-- Use <text> for all text content with font-family, font-size, font-weight, fill attributes
-- Use <rect> for boxes/cards/buttons with rx/ry for rounded corners
-- Use <g> to group related elements
-- Use <linearGradient> or <radialGradient> for gradients (defined in <defs>)
-- All colors should be hex codes
-- Text positioning: use x, y attributes and text-anchor for alignment
-- The SVG should visually represent the HTML design accurately
+## DESIGN CATEGORIES
+- UI_COMPONENT (button, input, card, etc.)
+- PAGE_LAYOUT (landing, dashboard, settings)
+- SYSTEM_DESIGN (architecture, flowcharts, ERD)
+- DATA_VIZ (bar charts, line charts, pie charts)
+- INFOGRAPHIC (timelines, process steps)
+- ICON_SET (24x24 grid icons)
+- LOGO (wordmarks, monograms)
+- WIREFRAME (grayscale, low-fidelity)
 
-Focus on clean, modern designs with good contrast, proper spacing, and professional aesthetics.`;
+## SVG RULES (CRITICAL)
+- Standalone SVGs with xmlns and viewBox="0 0 ${device.width} ${device.height}".
+- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>.
+- NO foreignObject, NO embedded HTML, NO <style> tags.
+- All colors must be hex codes.
+- Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
+- Manual text wrapping: use <tspan> with dy for multi-line text.
+- Group logical components with descriptive ids.
+
+## SCHEMA
+{
+  "variants": [
+    { "id": "v1", "name": "Name", "html": "...", "css": "...", "svg": "..." }
+  ]
+}`;
 
     const userPrompt = `Create ${variantCount} UI design variants for: "${prompt}"
 Device: ${device.label} (${device.width}x${device.height})
@@ -1080,6 +1088,14 @@ Make sure each SVG is valid, complete, and will paste directly into Figma as edi
       ]);
     }
 
+    // Post-process SVGs
+    if (result.variants && Array.isArray(result.variants)) {
+      result.variants = result.variants.map(v => {
+        v.svg = processSVG(v.svg, v.name);
+        return v;
+      });
+    }
+
     successResponse(res, {
       ...result,
       deviceType,
@@ -1089,6 +1105,97 @@ Make sure each SVG is valid, complete, and will paste directly into Figma as edi
     }, 'Design generated successfully');
   } catch (error) {
     console.error('Generate design error:', error);
+    errorResponse(res, 500, error.message, 'AI_ERROR');
+  }
+});
+
+app.post('/api/ai/generate-full-design', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { prompt, deviceType = 'desktop', variantCount = 4, referenceImage } = req.body;
+
+    const deviceConfig = {
+      mobile: { width: 390, height: 844, label: 'Mobile' },
+      tablet: { width: 768, height: 1024, label: 'Tablet' },
+      desktop: { width: 1440, height: 900, label: 'Desktop' },
+    };
+    const device = deviceConfig[deviceType] || deviceConfig.desktop;
+
+    const systemPrompt = `You are an expert AI design system and UI generator.
+Your goal is to produce a complete design package that imports perfectly into Figma as clean, editable vectors.
+
+## OUTPUT FORMAT
+Return a JSON object containing variants, a design system, and template suggestions.
+
+## SVG RULES (CRITICAL)
+- Standalone SVGs with xmlns and viewBox="0 0 ${device.width} ${device.height}".
+- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>.
+- NO foreignObject, NO embedded HTML, NO <style> tags.
+- All colors must be hex codes.
+- Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
+- Manual text wrapping: use <tspan> with dy for multi-line text.
+- Group logical components with descriptive ids (e.g., id="Navbar", id="Hero-Section").
+
+## DESIGN STYLES
+- SYSTEM_DESIGN: Diagrams with services, databases, arrows, and labels.
+- DATA_VIZ: Charts with axes, bars/lines, grid lines, and legends.
+- INFOGRAPHIC: Timelines, roadmaps, or process steps with icons and text.
+- UI_COMPONENT/PAGE_LAYOUT: Modern web/mobile interfaces with proper spacing and hierarchy.
+
+## SCHEMA
+{
+  "variants": [
+    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "metadata": { "extractedTokens": { "colors": [], "fonts": [] } } }
+  ],
+  "designSystem": {
+    "name": "Brand Design System",
+    "colors": { "primary": "#...", "secondary": "#...", "neutral": "#..." },
+    "typography": { "fontFamily": "Inter, sans-serif", "scale": [12, 14, 16, 20, 24, 32] },
+    "spacing": [4, 8, 12, 16, 24, 32, 48, 64]
+  },
+  "templates": {
+    "screens": [],
+    "components": [],
+    "layouts": [],
+    "formPatterns": [],
+    "dataDisplay": [],
+    "navigationPatterns": []
+  }
+}`;
+
+    const userPrompt = `Generate a full design package for: "${prompt}"
+Device: ${device.label} (${device.width}x${device.height})
+Variant Count: ${variantCount}
+${referenceImage ? "Use the provided reference image for layout and aesthetic guidance." : ""}
+
+Produce ${variantCount} high-quality design variants. Ensure SVGs are Figma-optimized.`;
+
+    let result;
+    if (referenceImage) {
+      result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
+    } else {
+      result = await chatWithAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], { temperature: 0.8 });
+    }
+
+    // Post-process SVGs and extract tokens if not already provided by AI
+    if (result.variants && Array.isArray(result.variants)) {
+      result.variants = result.variants.map(v => {
+        v.svg = processSVG(v.svg, v.name);
+        if (!v.metadata) v.metadata = {};
+        v.metadata.extractedTokens = extractTokensFromSVG(v.svg);
+        return v;
+      });
+    }
+
+    successResponse(res, {
+      ...result,
+      deviceInfo: device
+    }, 'Full design package generated');
+  } catch (error) {
+    console.error('Full design generation error:', error);
     errorResponse(res, 500, error.message, 'AI_ERROR');
   }
 });

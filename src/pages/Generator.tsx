@@ -29,6 +29,13 @@ interface Variant {
   html: string;
   css: string;
   svg?: string;
+  metadata?: {
+    extractedTokens?: {
+      colors: string[];
+      fonts: string[];
+      fontSizes: string[];
+    };
+  };
 }
 
 interface TemplateItem {
@@ -90,75 +97,60 @@ const Generator = () => {
     setTplError(null);
 
     try {
-      const [designRes, dsRes, tplRes] = await Promise.allSettled([
-        api.generateDesign({ prompt, deviceType, variantCount: 4, referenceImage }),
-        (async () => {
-          setDsLoading(true);
-          const r = await api.generateDesignSystem({ prompt });
-          setDsLoading(false);
-          return r;
-        })(),
-        (async () => {
-          setTplLoading(true);
-          const r = await api.generateTemplates({ prompt, deviceType });
-          setTplLoading(false);
-          return r;
-        })(),
-      ]);
+      setDsLoading(true);
+      setTplLoading(true);
 
-      if (designRes.status === "fulfilled") {
-        const data = designRes.value;
-        if (data?.error) throw new Error(data.error);
-        setResult(data);
-        if (data.variants?.length > 0) {
-          setSelectedVariant(data.variants[0].id);
-          await api.createDesign({
-            project_id: selectedProjectId || undefined,
-            prompt,
-            html_code: data.variants[0].html,
-            css_code: data.variants[0].css,
-            svg_code: data.variants[0].svg,
-            metadata: {
-              deviceType,
-              variantCount: data.variants.length,
-              referenceImage: referenceImage ? true : false
-            }
-          });
-          await api.createGenerationHistory({
-            type: "variant",
-            prompt,
-            result: { html: data.variants[0].html, css: data.variants[0].css, variantCount: data.variants.length },
-          });
-        }
-      } else {
-        throw designRes.reason;
+      const data = await api.generateFullDesign({ prompt, deviceType, variantCount: 4, referenceImage });
+
+      if (data.variants?.length > 0) {
+        const resultData = {
+          variants: data.variants,
+          deviceType: (deviceType as any) || "desktop",
+          deviceWidth: data.deviceInfo?.width || 1440,
+          deviceHeight: data.deviceInfo?.height || 900,
+          deviceLabel: data.deviceInfo?.label || "Web",
+        };
+
+        setResult(resultData);
+        setSelectedVariant(data.variants[0].id);
+
+        // Background saving
+        api.createDesign({
+          project_id: selectedProjectId || undefined,
+          prompt,
+          html_code: data.variants[0].html,
+          css_code: data.variants[0].css,
+          svg_code: data.variants[0].svg,
+          metadata: {
+            deviceType,
+            variantCount: data.variants.length,
+            referenceImage: referenceImage ? true : false,
+            extractedTokens: data.variants[0].metadata?.extractedTokens
+          }
+        }).catch(console.error);
+
+        api.createGenerationHistory({
+          type: "full-generation",
+          prompt,
+          result: {
+            variantCount: data.variants.length,
+            hasDesignSystem: !!data.designSystem,
+            templateCount: Object.keys(data.templates || {}).length
+          },
+        }).catch(console.error);
       }
 
-      if (dsRes.status === "fulfilled") {
-        const { data, error } = dsRes.value;
-        if (!error && data?.designSystem) {
-          setDesignSystem(data.designSystem);
-        } else {
-          setDsError(error?.message || data?.error || "Failed to generate design system");
-        }
-      } else {
-        setDsError("Design system generation failed");
+      if (data.designSystem) {
+        setDesignSystem(data.designSystem);
       }
 
-      if (tplRes.status === "fulfilled") {
-        const { data, error } = tplRes.value;
-        if (!error && !data?.error) {
-          setScreens(data?.screens || data?.pageLayouts || []);
-          setComponents(data?.components || []);
-          setPageLayouts(data?.pageLayouts || []);
-          setFormPatterns(data?.formPatterns || []);
-          setDataDisplay(data?.dataDisplay || []);
-          setNavigationPatterns(data?.navigationPatterns || []);
-        } else {
-          setTplError(error?.message || data?.error || "Failed to generate templates");
-        }
-      } else {
-        setTplError("Template generation failed");
+      if (data.templates) {
+        setScreens(data.templates.screens || []);
+        setComponents(data.templates.components || []);
+        setPageLayouts(data.templates.layouts || []);
+        setFormPatterns(data.templates.formPatterns || []);
+        setDataDisplay(data.templates.dataDisplay || []);
+        setNavigationPatterns(data.templates.navigationPatterns || []);
       }
 
       toast({ title: "Generation complete!", description: "Designs, system, and templates ready" });
