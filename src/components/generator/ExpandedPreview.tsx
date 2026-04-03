@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces, Layers, Settings2, Image as ImageIcon } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces, Layers, Settings2, Image as ImageIcon, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { htmlCssToReactComponent } from "@/lib/export-utils";
@@ -12,6 +12,7 @@ import html2canvas from "html2canvas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayersPanel } from "./LayersPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { api } from "@/integrations/neon/client";
 
 interface Variant {
   id: string;
@@ -46,6 +47,12 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   const [followUp, setFollowUp] = useState("");
   const [iterating, setIterating] = useState(false);
   const [history, setHistory] = useState<{ html: string; css: string }[]>([]);
+  const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
+  const [hoveredLayer, setHoveredLayer] = useState<string | null>(null);
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [feedbackState, setFeedbackState] = useState<'none' | 'positive' | 'negative'>('none');
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -127,9 +134,33 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     setHistory((h) => h.slice(0, -1));
   };
 
+  const toggleLayerVisibility = (layerId: string, visible: boolean) => {
+    setHiddenLayers(prev => {
+      const next = new Set(prev);
+      if (visible) next.delete(layerId);
+      else next.add(layerId);
+      return next;
+    });
+  };
+
   const getIframeContent = () => {
     const sanitizedCSS = sanitizeCSS(editedCss);
     const sanitizedHTML = sanitizeHTML(editedHtml);
+
+    // Create visibility-toggle CSS
+    const visibilityCSS = Array.from(hiddenLayers)
+      .map(id => `#${id}, [data-name="${id}"] { display: none !important; }`)
+      .join('\n');
+
+    // Highlight CSS
+    const highlightCSS = hoveredLayer
+      ? `#${hoveredLayer}, [data-name="${hoveredLayer}"] { outline: 2px solid #3b82f6 !important; outline-offset: 2px; }`
+      : "";
+
+    const selectionCSS = selectedLayer
+      ? `#${selectedLayer}, [data-name="${selectedLayer}"] { outline: 2px solid #3b82f6 !important; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3) !important; }`
+      : "";
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -144,6 +175,9 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     ${sanitizedCSS}
+    ${visibilityCSS}
+    ${highlightCSS}
+    ${selectionCSS}
   </style>
 </head>
 <body>
@@ -277,6 +311,31 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     toast({ title: "React component copied!" });
   };
 
+  const handleFeedback = async (positive: boolean) => {
+    setFeedbackState(positive ? 'positive' : 'negative');
+    if (positive) {
+      try {
+        await api.submitFeedback(variant.id, 1);
+        toast({ title: "Thanks for your feedback!" });
+      } catch (err: any) {
+        toast({ title: "Feedback error", description: err.message, variant: "destructive" });
+      }
+    } else {
+      setShowFeedbackForm(true);
+    }
+  };
+
+  const submitDetailedFeedback = async () => {
+    try {
+      await api.submitFeedback(variant.id, 0, feedbackText);
+      setShowFeedbackForm(false);
+      setFeedbackText("");
+      toast({ title: "Feedback submitted!", description: "We'll use this to improve the AI." });
+    } catch (err: any) {
+      toast({ title: "Feedback error", description: err.message, variant: "destructive" });
+    }
+  };
+
   const enableDirectEdit = useCallback(() => {
     setEditMode(!editMode);
     if (!editMode && iframeRef.current) {
@@ -294,6 +353,16 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     }
   }, [editMode, toast]);
 
+  useEffect(() => {
+    const handleIframeMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'element-clicked') {
+        setSelectedLayer(e.data.id);
+      }
+    };
+    window.addEventListener('message', handleIframeMessage);
+    return () => window.removeEventListener('message', handleIframeMessage);
+  }, []);
+
   const renderDeviceFrame = (ref?: React.Ref<HTMLIFrameElement>) => {
     const srcDoc = getIframeContent();
     const iframeEl = (
@@ -303,6 +372,22 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
         className="w-full h-full border-0"
         title={variant.name}
         sandbox="allow-scripts"
+        onLoad={() => {
+          if (iframeRef.current?.contentDocument) {
+            const doc = iframeRef.current.contentDocument;
+            doc.addEventListener('click', (e) => {
+              let target = e.target as HTMLElement | null;
+              while (target && target !== doc.body) {
+                const id = target.id || target.getAttribute('data-name');
+                if (id) {
+                  window.postMessage({ type: 'element-clicked', id }, '*');
+                  break;
+                }
+                target = target.parentElement;
+              }
+            });
+          }
+        }}
       />
     );
 
@@ -456,6 +541,54 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               )}
             </div>
           )}
+
+          {/* Feedback buttons */}
+          <div className="mt-4 flex items-center justify-between px-2">
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-muted-foreground font-medium">Was this generation helpful?</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Thumbs Up"
+                  title="Helpful generation"
+                  className={cn("h-8 w-8", feedbackState === 'positive' && "text-green-500 bg-green-500/10")}
+                  onClick={() => handleFeedback(true)}
+                >
+                  <ThumbsUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Thumbs Down"
+                  title="Not helpful"
+                  className={cn("h-8 w-8", (feedbackState === 'negative' || showFeedbackForm) && "text-destructive bg-destructive/10")}
+                  onClick={() => handleFeedback(false)}
+                >
+                  <ThumbsDown className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {showFeedbackForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mt-3 space-y-2 bg-muted/30 p-3 rounded-lg border border-border/50"
+            >
+              <Textarea
+                placeholder="What could be better? (e.g., 'bad alignment', 'wrong colors')"
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                className="text-xs min-h-[60px]"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowFeedbackForm(false)} className="text-xs h-7">Cancel</Button>
+                <Button size="sm" onClick={submitDetailedFeedback} className="text-xs h-7 gradient-primary text-primary-foreground">Submit</Button>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Inspection Panel */}
@@ -488,7 +621,15 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
               </pre>
             </TabsContent>
             <TabsContent value="layers" className="flex-1 overflow-hidden m-0 p-0 bg-card/30">
-              <LayersPanel svgCode={variant.svg || ""} />
+              <LayersPanel
+                svgCode={variant.svg || ""}
+                hiddenLayers={hiddenLayers}
+                onVisibilityToggle={toggleLayerVisibility}
+                hoveredLayer={hoveredLayer}
+                onHover={setHoveredLayer}
+                selectedLayer={selectedLayer}
+                onSelect={setSelectedLayer}
+              />
             </TabsContent>
             <TabsContent value="props" className="flex-1 overflow-hidden m-0 p-0 bg-card/30">
               <PropertiesPanel tokens={variant.metadata?.extractedTokens} />

@@ -1,8 +1,10 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X } from "lucide-react";
+import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X, Wand2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/integrations/neon/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface PromptInputProps {
   onGenerate: (prompt: string, deviceType: string, referenceImage?: string) => void;
@@ -24,15 +26,37 @@ const examples = [
 ];
 
 export function PromptInput({ onGenerate, generating }: PromptInputProps) {
+  const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
   const [deviceType, setDeviceType] = useState("mobile");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const [enhancing, setEnhancing] = useState(false);
+  const [parameters, setParameters] = useState<Array<{ label: string; value: string; type: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEnhance = async () => {
+    if (!prompt.trim() || enhancing) return;
+    setEnhancing(true);
+    try {
+      const result = await api.enhancePrompt(prompt);
+      setPrompt(result.enhancedPrompt);
+      setParameters(result.parameters);
+      toast({ title: "Prompt enhanced!", description: "AI has refined your request and identified key parameters." });
+    } catch (err: any) {
+      toast({ title: "Enhancement failed", description: err.message, variant: "destructive" });
+    } finally {
+      setEnhancing(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (prompt.trim() && !generating) {
-      onGenerate(prompt.trim(), deviceType, referenceImage || undefined);
+      // We could append parameters to prompt if we wanted them to be explicitly used
+      const finalPrompt = parameters.length > 0
+        ? `${prompt}\n\nParameters: ${parameters.map(p => `${p.label}: ${p.value}`).join(", ")}`
+        : prompt;
+      onGenerate(finalPrompt.trim(), deviceType, referenceImage || undefined);
     }
   };
 
@@ -96,6 +120,28 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
           className="border-0 bg-transparent resize-none text-base min-h-[100px] p-5 pb-14 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
         />
 
+        {/* Parameters display */}
+        {parameters.length > 0 && (
+          <div className="px-5 pb-3 flex flex-wrap gap-2">
+            {parameters.map((param, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/40 text-[11px] font-medium"
+              >
+                <Settings2 className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">{param.label}:</span>
+                <span className="text-foreground">{param.value}</span>
+                <button
+                  onClick={() => setParameters(p => p.filter((_, i) => i !== idx))}
+                  className="ml-1 hover:text-destructive transition-colors"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Bottom toolbar */}
         <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 border-t border-border/30">
           <div className="flex items-center gap-1">
@@ -115,6 +161,18 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
               title="Attach reference image"
             >
               <Image className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEnhance}
+              disabled={!prompt.trim() || enhancing}
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-2"
+              title="AI Prompt Enhancement"
+            >
+              {enhancing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Enhance</span>
             </Button>
 
             {/* Device selector */}
