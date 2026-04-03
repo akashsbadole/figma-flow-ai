@@ -472,6 +472,26 @@ export const api = {
     return handleResponse(res) as Promise<UserProfile>;
   },
 
+  async submitFeedback(variantId: string, rating: number, feedback?: string): Promise<null> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/ai/feedback`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variantId, rating, feedback }),
+    });
+    return handleResponse(res) as Promise<null>;
+  },
+
+  async enhancePrompt(prompt: string): Promise<{ enhancedPrompt: string; parameters: Array<{ label: string; value: string; type: string }> }> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/ai/enhance-prompt`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    return handleResponse(res) as Promise<{ enhancedPrompt: string; parameters: Array<{ label: string; value: string; type: string }> }>;
+  },
+
   async generateDesign(data: { prompt: string; deviceType: string; variantCount?: number; referenceImage?: string }): Promise<DesignResponse> {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/ai/generate-design`, {

@@ -1005,6 +1005,64 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/ai/feedback', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { variantId, rating, feedback } = req.body;
+
+    if (!variantId || rating === undefined) {
+      return errorResponse(res, 400, 'Variant ID and rating are required', 'VALIDATION_ERROR');
+    }
+
+    // Store feedback in generation_history as a special type or a dedicated table if available
+    // For now, let's use generation_history with type 'user-feedback'
+    await pool.query(
+      `INSERT INTO public.generation_history (user_id, type, prompt, result, metadata)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, 'user-feedback', variantId, { rating }, { feedback }]
+    );
+
+    successResponse(res, null, 'Feedback submitted');
+  } catch (error) {
+    console.error('Feedback error:', error);
+    errorResponse(res, 500, error.message, 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/ai/enhance-prompt', authMiddleware, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== 'string') {
+      return errorResponse(res, 400, 'Prompt is required', 'VALIDATION_ERROR');
+    }
+
+    const systemPrompt = `You are an expert prompt engineer for a UI design AI.
+Your goal is to take a simple user prompt and enhance it into a detailed, professional design brief.
+Also, identify 2-4 key parameters that can be adjusted (e.g., "Primary Color", "Corner Radius", "Number of Columns").
+
+## SCHEMA
+{
+  "enhancedPrompt": "...",
+  "parameters": [
+    { "label": "Primary Color", "value": "#...", "type": "color" },
+    { "label": "Columns", "value": "3", "type": "number" }
+  ]
+}`;
+
+    const userPrompt = `Enhance this UI design prompt: "${prompt}"`;
+
+    const result = await chatWithAI([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]);
+
+    successResponse(res, result, 'Prompt enhanced');
+  } catch (error) {
+    console.error('Enhance prompt error:', error);
+    errorResponse(res, 500, error.message, 'AI_ERROR');
+  }
+});
+
 app.post('/api/ai/generate-design', authMiddleware, async (req, res) => {
   try {
     const userId = req.userId;

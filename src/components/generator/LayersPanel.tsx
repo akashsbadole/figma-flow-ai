@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, ChevronRight, ChevronDown, Square, Type, Circle, MousePointer2 } from 'lucide-react';
+import { Layers, ChevronRight, ChevronDown, Square, Type, Circle, MousePointer2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LayerNode {
@@ -12,9 +12,24 @@ interface LayerNode {
 interface LayersPanelProps {
   svgCode: string;
   className?: string;
+  onVisibilityToggle?: (id: string, visible: boolean) => void;
+  onHover?: (id: string | null) => void;
+  onSelect?: (id: string) => void;
+  hiddenLayers?: Set<string>;
+  hoveredLayer?: string | null;
+  selectedLayer?: string | null;
 }
 
-export function LayersPanel({ svgCode, className }: LayersPanelProps) {
+export function LayersPanel({
+  svgCode,
+  className,
+  onVisibilityToggle,
+  onHover,
+  onSelect,
+  hiddenLayers = new Set(),
+  hoveredLayer = null,
+  selectedLayer = null
+}: LayersPanelProps) {
   const [layers, setLayers] = React.useState<LayerNode[]>([]);
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
@@ -71,24 +86,48 @@ export function LayersPanel({ svgCode, className }: LayersPanelProps) {
   const renderNode = (node: LayerNode, depth = 0) => {
     const isExpanded = expanded[node.id];
     const hasChildren = node.children && node.children.length > 0;
+    const isHidden = hiddenLayers.has(node.id);
+    const isHovered = hoveredLayer === node.id;
+    const isSelected = selectedLayer === node.id;
 
     return (
       <div key={node.id} className="select-none">
         <div
           className={cn(
-            "flex items-center gap-1.5 py-1.5 px-2 hover:bg-muted/50 cursor-pointer rounded-md transition-colors",
-            depth > 0 && "ml-3"
+            "flex items-center gap-1.5 py-1.5 px-2 hover:bg-muted/50 cursor-pointer rounded-md transition-colors group/item",
+            depth > 0 && "ml-3",
+            isHidden && "opacity-50",
+            isHovered && "bg-primary/10",
+            isSelected && "bg-primary/20 ring-1 ring-primary/30"
           )}
-          onClick={() => hasChildren && toggleExpand(node.id)}
+          onMouseEnter={() => onHover?.(node.id)}
+          onMouseLeave={() => onHover?.(null)}
+          onClick={() => onSelect?.(node.id)}
         >
-          <div className="w-4 flex items-center justify-center">
+          <div
+            className="w-4 flex items-center justify-center"
+            onClick={() => hasChildren && toggleExpand(node.id)}
+          >
             {hasChildren && (
               isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
             )}
           </div>
-          {getIcon(node.type)}
-          <span className="text-xs font-medium truncate">{node.name}</span>
-          <span className="text-[10px] text-muted-foreground/60 uppercase ml-auto">{node.type}</span>
+          <div className="flex items-center gap-1.5 flex-1 truncate" onClick={() => hasChildren && toggleExpand(node.id)}>
+            {getIcon(node.type)}
+            <span className="text-xs font-medium truncate">{node.name}</span>
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onVisibilityToggle?.(node.id, isHidden);
+            }}
+            className="p-1 rounded hover:bg-muted opacity-0 group-hover/item:opacity-100 transition-opacity"
+          >
+            {isHidden ? <EyeOff className="h-3 w-3 text-muted-foreground" /> : <Eye className="h-3 w-3 text-muted-foreground" />}
+          </button>
+
+          <span className="text-[10px] text-muted-foreground/60 uppercase ml-1 shrink-0">{node.type}</span>
         </div>
 
         {hasChildren && isExpanded && (
