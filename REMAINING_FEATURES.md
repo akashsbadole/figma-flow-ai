@@ -8,12 +8,13 @@ This document outlines the features and functionalities identified in the `featu
 *   **Design-to-Design Translation**: Specific "translation" workflows such as "Wireframe to High-Fidelity" or "Convert to Dark Mode" are not yet implemented as dedicated features.
 *   **Design Assembly**: A drag-and-drop interface for combining multiple generated components (e.g., a Navbar from one generation and a Hero section from another) into a single page layout.
 
+* Ui Ux agent 
 ## 2. Canvas & Preview Enhancements
 *   **Advanced Canvas Tools**: Ruler guides, grid overlays, and interactive element highlighting (showing the layer name/ID on hover) are missing from the preview canvas.
 *   **Direct Element Selection**: The ability to click directly on an element within the SVG canvas to view and edit its specific properties in the sidebar.
 *   **Real-time Layer Controls**: While a Layers panel exists, it currently lacks visibility toggles (hide/show) for individual elements.
 
-## 3. Collaboration & Social Features
+## 3. Collaboration & Social Features - not now
 *   **Link Sharing & Permissions**: Generating public/private shareable links for designs and managing granular edit/view permissions for other users.
 *   **Commenting System**: On-design commenting with @mentions and threaded replies for collaborative review.
 *   **Team Workspaces**: Shared project areas and organization-level resource management.
@@ -28,12 +29,9 @@ This document outlines the features and functionalities identified in the `featu
 *   **Hierarchical Folders**: The current system uses a flat project list; nested folders with drag-and-drop organization are not yet implemented.
 *   **Collections**: A way to save and tag favorite generations into curated "Collections" across different projects.
 
-## 6. Developer Tools & Integrations
-*   **Figma Plugin**: A dedicated plugin for two-way sync between the SaaS and Figma.
-*   **CLI & SDK**: A command-line interface for programmatic design generation and official JavaScript/Python SDKs for the API.
-*   **Design Token Extractor Page**: While the backend can extract tokens, there is no dedicated frontend tool for uploading an external SVG to generate a design system from it.
-
-## 7. Quality & Feedback
+## 6. Quality & Feedback
 *   **Design Lint**: A user-facing tool to analyze generated SVGs for accessibility (contrast), spacing, and alignment issues with suggested fixes.
 *   **Human Feedback Loop**: Structured "Thumbs Up/Down" buttons with a feedback form to help fine-tune the AI model's output quality over time.
 *   **Advanced SVG Optimization**: A dedicated pipeline stage to minimize path data and merge overlapping elements beyond the current basic cleaning.
+
+## 7. code export i to html, css also in reactjs , two options to exporta
