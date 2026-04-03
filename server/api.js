@@ -176,8 +176,9 @@ let miniMaxClient = null;
 // Initialize Gemini
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  // Using gemini-2.5-flash as the stable production model in this environment
-  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // Use gemini-1.5-flash as the default stable model
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  geminiModel = genAI.getGenerativeModel({ model: modelName });
 }
 
 // Initialize OpenAI (also works for Claude via OpenAI-compatible APIs)
@@ -215,7 +216,7 @@ async function chatWithAI(messages, options = {}) {
           const prompt = messages.map(m => m.content).join('\n\n');
           const result = await geminiModel.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature },
+            generationConfig: { temperature, responseMimeType: 'application/json' },
           });
           const text = result.response.text();
           const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -278,7 +279,7 @@ async function analyzeImageWithAI(image, prompt, options = {}) {
             { inlineData: { data: imageData, mimeType: 'image/jpeg' } }
           ]
         }],
-        generationConfig: { temperature },
+        generationConfig: { temperature, responseMimeType: 'application/json' },
       });
       const text = result.response.text();
       const jsonMatch = text.match(/\{[\s\S]*\}/);

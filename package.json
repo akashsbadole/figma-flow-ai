@@ -13,7 +13,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npx playwright test"
+    "test:e2e": "npx playwright test",
+    "test:ai": "vitest run src/test/ai-agents.test.ts",
+    "db:create-test-user": "node server/create_test_user.js",
+    "db:seed-samples": "node server/seed_samples.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
