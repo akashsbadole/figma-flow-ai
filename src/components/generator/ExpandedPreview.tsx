@@ -160,8 +160,8 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   };
 
   const getIframeContent = () => {
-    const sanitizedCSS = sanitizeCSS(editedCss);
-    const sanitizedHTML = sanitizeHTML(editedHtml);
+    const sanitizedCSS = sanitizeCSS(editedCss || "");
+    const sanitizedHTML = sanitizeHTML(editedHtml || "");
 
     // Create visibility-toggle CSS
     const visibilityCSS = Array.from(hiddenLayers)
@@ -484,15 +484,6 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     toast({ title: "Version restored" });
   };
 
-  useEffect(() => {
-    const handleIframeMessage = (e: MessageEvent) => {
-      if (e.data?.type === 'element-clicked') {
-        setSelectedLayer(e.data.id);
-      }
-    };
-    window.addEventListener('message', handleIframeMessage);
-    return () => window.removeEventListener('message', handleIframeMessage);
-  }, []);
 
   const renderDeviceFrame = (ref?: React.Ref<HTMLIFrameElement>) => {
     const srcDoc = getIframeContent();
@@ -507,16 +498,16 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
           if (iframeRef.current?.contentDocument) {
             const doc = iframeRef.current.contentDocument;
             doc.addEventListener('click', (e) => {
-              let target = e.target as HTMLElement | null;
-              while (target && target !== doc.body) {
+              let target = e.target as HTMLElement | SVGElement | null;
+              while (target && target !== doc.body && target !== doc.documentElement) {
                 const id = target.id || target.getAttribute('data-name');
                 if (id) {
-                  window.postMessage({ type: 'element-clicked', id }, '*');
-                  break;
+                  setSelectedLayer(id);
+                  return;
                 }
-                target = target.parentElement;
+                target = target.parentElement || (target.parentNode as any);
               }
-            });
+            }, { capture: true });
           }
         }}
       />
