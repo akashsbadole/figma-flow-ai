@@ -176,7 +176,9 @@ let miniMaxClient = null;
 // Initialize Gemini
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // Use gemini-1.5-flash as the default stable model
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  geminiModel = genAI.getGenerativeModel({ model: modelName });
 }
 
 // Initialize OpenAI (also works for Claude via OpenAI-compatible APIs)
@@ -216,7 +218,9 @@ async function chatWithAI(messages, options = {}) {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: { temperature, responseMimeType: 'application/json' },
           });
-          return JSON.parse(result.response.text());
+          const text = result.response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          return JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
         case 'minimax':
           if (!miniMaxClient) throw new Error('MiniMax not configured');
@@ -277,7 +281,9 @@ async function analyzeImageWithAI(image, prompt, options = {}) {
         }],
         generationConfig: { temperature, responseMimeType: 'application/json' },
       });
-      return JSON.parse(result.response.text());
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
     case 'minimax':
     case 'openai':
