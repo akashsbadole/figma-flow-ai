@@ -177,7 +177,7 @@ let miniMaxClient = null;
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   // Use gemini-1.5-flash as the default stable model
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   geminiModel = genAI.getGenerativeModel({ model: modelName });
 }
 
