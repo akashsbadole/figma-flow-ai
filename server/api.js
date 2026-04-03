@@ -176,6 +176,7 @@ let miniMaxClient = null;
 // Initialize Gemini
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  // Using gemini-2.5-flash as the stable production model in this environment
   geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 }
 
@@ -214,9 +215,11 @@ async function chatWithAI(messages, options = {}) {
           const prompt = messages.map(m => m.content).join('\n\n');
           const result = await geminiModel.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature, responseMimeType: 'application/json' },
+            generationConfig: { temperature },
           });
-          return JSON.parse(result.response.text());
+          const text = result.response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          return JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
         case 'minimax':
           if (!miniMaxClient) throw new Error('MiniMax not configured');
@@ -275,9 +278,11 @@ async function analyzeImageWithAI(image, prompt, options = {}) {
             { inlineData: { data: imageData, mimeType: 'image/jpeg' } }
           ]
         }],
-        generationConfig: { temperature, responseMimeType: 'application/json' },
+        generationConfig: { temperature },
       });
-      return JSON.parse(result.response.text());
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
     case 'minimax':
     case 'openai':
