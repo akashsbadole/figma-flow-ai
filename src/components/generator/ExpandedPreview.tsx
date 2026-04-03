@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces, Layers, Settings2, Image as ImageIcon, ThumbsUp, ThumbsDown } from "lucide-react";
+import { X, Copy, Code, Download, Check, MousePointer, Loader2, Send, ZoomIn, ZoomOut, Maximize, FileDown, Braces, Layers, Settings2, Image as ImageIcon, ThumbsUp, ThumbsDown, Ruler, Grid3X3, History, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { htmlCssToReactComponent } from "@/lib/export-utils";
@@ -12,7 +12,17 @@ import html2canvas from "html2canvas";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayersPanel } from "./LayersPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
-import { api } from "@/integrations/neon/client";
+import { api, DesignVersion } from "@/integrations/neon/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface Variant {
   id: string;
@@ -50,9 +60,15 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
   const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set());
   const [hoveredLayer, setHoveredLayer] = useState<string | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [showRulers, setShowRulers] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const [feedbackState, setFeedbackState] = useState<'none' | 'positive' | 'negative'>('none');
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [versions, setVersions] = useState<DesignVersion[]>([]);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [snapshotName, setSnapshotName] = useState("");
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -152,6 +168,24 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
       .map(id => `#${id}, [data-name="${id}"] { display: none !important; }`)
       .join('\n');
 
+    // Grid CSS
+    const gridCSS = showGrid
+      ? `body::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-image:
+            linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+          background-size: 20px 20px;
+          pointer-events: none;
+          z-index: 9999;
+        }`
+      : "";
+
     // Highlight CSS
     const highlightCSS = hoveredLayer
       ? `#${hoveredLayer}, [data-name="${hoveredLayer}"] { outline: 2px solid #3b82f6 !important; outline-offset: 2px; }`
@@ -176,6 +210,7 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     }
     ${sanitizedCSS}
     ${visibilityCSS}
+    ${gridCSS}
     ${highlightCSS}
     ${selectionCSS}
   </style>
@@ -353,6 +388,102 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
     }
   }, [editMode, toast]);
 
+  const renderRulers = () => {
+    if (!showRulers) return null;
+
+    const horizontalTicks = [];
+    for (let i = 0; i <= deviceWidth; i += 50) {
+      horizontalTicks.push(
+        <g key={`h-${i}`} transform={`translate(${i}, 0)`}>
+          <line x1="0" y1="0" x2="0" y2={i % 100 === 0 ? 15 : 8} stroke="currentColor" strokeWidth="1" />
+          {i % 100 === 0 && (
+            <text x="2" y="12" fontSize="9" className="fill-muted-foreground font-mono">
+              {i}
+            </text>
+          )}
+        </g>
+      );
+    }
+
+    const verticalTicks = [];
+    for (let i = 0; i <= deviceHeight; i += 50) {
+      verticalTicks.push(
+        <g key={`v-${i}`} transform={`translate(0, ${i})`}>
+          <line x1="0" y1="0" x2={i % 100 === 0 ? 15 : 8} y2="0" stroke="currentColor" strokeWidth="1" />
+          {i % 100 === 0 && (
+            <text x="12" y="2" fontSize="9" className="fill-muted-foreground font-mono" transform="rotate(-90 12 2)">
+              {i}
+            </text>
+          )}
+        </g>
+      );
+    }
+
+    return (
+      <>
+        {/* Horizontal Ruler */}
+        <div
+          className="absolute left-0 right-0 h-4 bg-muted/80 border-b border-border/50 overflow-hidden z-20 pointer-events-none"
+          style={{ top: -16, width: deviceWidth }}
+        >
+          <svg width="100%" height="100%" className="text-muted-foreground/40">
+            {horizontalTicks}
+          </svg>
+        </div>
+        {/* Vertical Ruler */}
+        <div
+          className="absolute top-0 bottom-0 w-4 bg-muted/80 border-r border-border/50 overflow-hidden z-20 pointer-events-none"
+          style={{ left: -16, height: deviceHeight }}
+        >
+          <svg width="100%" height="100%" className="text-muted-foreground/40">
+            {verticalTicks}
+          </svg>
+        </div>
+      </>
+    );
+  };
+
+  const fetchVersions = useCallback(async () => {
+    try {
+      const data = await api.getDesignVersions(variant.id);
+      setVersions(data);
+    } catch (err) {
+      console.error("Failed to fetch versions:", err);
+    }
+  }, [variant.id]);
+
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
+
+  const saveSnapshot = async () => {
+    if (!snapshotName.trim()) return;
+    setSavingSnapshot(true);
+    try {
+      await api.createDesignVersion(variant.id, {
+        name: snapshotName.trim(),
+        html_code: editedHtml,
+        css_code: editedCss,
+        svg_code: variant.svg
+      });
+      toast({ title: "Snapshot saved!" });
+      setShowSaveDialog(false);
+      setSnapshotName("");
+      fetchVersions();
+    } catch (err: any) {
+      toast({ title: "Failed to save snapshot", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingSnapshot(false);
+    }
+  };
+
+  const restoreVersion = (v: DesignVersion) => {
+    setHistory((prev) => [...prev, { html: editedHtml, css: editedCss }]);
+    setEditedHtml(v.html_code);
+    setEditedCss(v.css_code);
+    toast({ title: "Version restored" });
+  };
+
   useEffect(() => {
     const handleIframeMessage = (e: MessageEvent) => {
       if (e.data?.type === 'element-clicked') {
@@ -485,6 +616,7 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
             style={{ cursor: isPanning ? "grabbing" : "default" }}
           >
             <div
+              className="relative"
               style={{
                 width: deviceWidth,
                 height: deviceHeight,
@@ -493,11 +625,31 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
                 transition: isPanning ? "none" : "transform 0.15s ease-out",
               }}
             >
+              {renderRulers()}
               {renderDeviceFrame(iframeRef)}
             </div>
 
             {/* Zoom controls */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2 py-1 shadow-md">
+              <Button
+                variant={showRulers ? "secondary" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setShowRulers(!showRulers)}
+                title="Toggle Rulers"
+              >
+                <Ruler className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={showGrid ? "secondary" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setShowGrid(!showGrid)}
+                title="Toggle Grid"
+              >
+                <Grid3X3 className="h-3.5 w-3.5" />
+              </Button>
+              <div className="w-px h-4 bg-border mx-0.5" />
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={zoomOut}>
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
@@ -604,10 +756,18 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
                 <TabsTrigger value="props" className="text-xs flex items-center gap-1">
                   <Settings2 className="h-3 w-3" /> Inspect
                 </TabsTrigger>
+                <TabsTrigger value="versions" className="text-xs flex items-center gap-1">
+                  <History className="h-3 w-3" /> History
+                </TabsTrigger>
               </TabsList>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportPNG} title="Export as PNG (3x)">
-                <ImageIcon className="h-3.5 w-3.5" />
-              </Button>
+              <div className="flex items-center gap-1 pr-1">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setShowSaveDialog(true)} title="Save Snapshot">
+                  <Save className="h-3.5 w-3.5 text-primary" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exportPNG} title="Export as PNG (3x)">
+                  <ImageIcon className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
 
             <TabsContent value="html" className="flex-1 overflow-auto m-0 p-0">
@@ -634,9 +794,62 @@ export function ExpandedPreview({ variant, deviceType, deviceWidth, deviceHeight
             <TabsContent value="props" className="flex-1 overflow-hidden m-0 p-0 bg-card/30">
               <PropertiesPanel tokens={variant.metadata?.extractedTokens} />
             </TabsContent>
+            <TabsContent value="versions" className="flex-1 overflow-auto m-0 p-0 bg-card/30">
+              <div className="p-4 space-y-4">
+                {versions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <History className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No snapshots saved yet</p>
+                  </div>
+                ) : (
+                  versions.map((v) => (
+                    <div key={v.id} className="p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors group">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold truncate">{v.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(v.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => restoreVersion(v)}>
+                        Restore this version
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Design Snapshot</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Snapshot Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Hero Section V2, Updated Colors"
+                value={snapshotName}
+                onChange={(e) => setSnapshotName(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowSaveDialog(false)}>Cancel</Button>
+            <Button
+              className="gradient-primary text-primary-foreground"
+              onClick={saveSnapshot}
+              disabled={!snapshotName.trim() || savingSnapshot}
+            >
+              {savingSnapshot ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Snapshot
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

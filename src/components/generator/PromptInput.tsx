@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X, Wand2, Settings2 } from "lucide-react";
+import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X, Wand2, Settings2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/integrations/neon/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,8 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
   const [enhancing, setEnhancing] = useState(false);
   const [parameters, setParameters] = useState<Array<{ label: string; value: string; type: string }>>([]);
+  const [editingParam, setEditingParam] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEnhance = async () => {
@@ -126,11 +128,58 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
             {parameters.map((param, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 border border-border/40 text-[11px] font-medium"
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all border",
+                  editingParam === idx
+                    ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+                    : "bg-muted/50 border-border/40"
+                )}
               >
                 <Settings2 className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">{param.label}:</span>
-                <span className="text-foreground">{param.value}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{param.label}:</span>
+
+                {editingParam === idx ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      className="text-[11px] font-medium bg-transparent border-0 p-0 focus:ring-0 w-20 text-foreground"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const newParams = [...parameters];
+                          newParams[idx].value = editValue;
+                          setParameters(newParams);
+                          setEditingParam(null);
+                        } else if (e.key === "Escape") {
+                          setEditingParam(null);
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const newParams = [...parameters];
+                        newParams[idx].value = editValue;
+                        setParameters(newParams);
+                        setEditingParam(null);
+                      }}
+                      className="text-primary hover:scale-110"
+                    >
+                      <Check className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingParam(idx);
+                      setEditValue(param.value);
+                    }}
+                    className="text-[11px] font-medium text-foreground hover:text-primary transition-colors cursor-text"
+                  >
+                    {param.value}
+                  </button>
+                )}
+
                 <button
                   onClick={() => setParameters(p => p.filter((_, i) => i !== idx))}
                   className="ml-1 hover:text-destructive transition-colors"
