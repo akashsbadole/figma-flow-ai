@@ -1115,6 +1115,7 @@ Return a JSON response with exactly ${variantCount} variants.
 - Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
 - Manual text wrapping: use <tspan> with dy for multi-line text.
 - Group logical components with descriptive ids.
+- IMPORTANT: Use consistent 'id' or 'data-name' attributes for key UI elements in BOTH the HTML and SVG code to ensure synchronization between the preview and layers.
 
 ## SCHEMA
 {
@@ -1193,6 +1194,7 @@ Return a JSON object containing variants, a design system, and template suggesti
 - Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
 - Manual text wrapping: use <tspan> with dy for multi-line text.
 - Group logical components with descriptive ids (e.g., id="Navbar", id="Hero-Section").
+- IMPORTANT: Use consistent 'id' or 'data-name' attributes for key UI elements in BOTH the HTML and SVG code to ensure synchronization between the preview and layers.
 
 ## DESIGN STYLES
 - SYSTEM_DESIGN: Diagrams with services, databases, arrows, and labels.
@@ -1203,7 +1205,7 @@ Return a JSON object containing variants, a design system, and template suggesti
 ## SCHEMA
 {
   "variants": [
-    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "metadata": { "extractedTokens": { "colors": [], "fonts": [] } } }
+    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "css": "...", "metadata": { "extractedTokens": { "colors": [], "fonts": [] } } }
   ],
   "designSystem": {
     "name": "Brand Design System",

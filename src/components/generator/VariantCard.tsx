@@ -68,8 +68,8 @@ export function VariantCard({
   };
 
   const getIframeContent = () => {
-    const sanitizedCSS = sanitizeCSS(variant.css);
-    const sanitizedHTML = sanitizeHTML(variant.html);
+    const sanitizedCSS = sanitizeCSS(variant.css || "");
+    const sanitizedHTML = sanitizeHTML(variant.html || "");
     return `<!DOCTYPE html>
 <html>
 <head>
