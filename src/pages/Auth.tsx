@@ -30,6 +30,14 @@ const Auth = () => {
             }
           }}
         />
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => navigate("/forgot-password")}
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+          >
+            Forgot your password?
+          </button>
+        </div>
       </div>
     </HomepageLayout>
   );

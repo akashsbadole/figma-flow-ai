@@ -15,6 +15,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage"));
 const Auth = lazy(() => import("./pages/Auth"));
 const SignUpPage = lazy(() => import("./pages/SignUp"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Generator = lazy(() => import("./pages/Generator"));
 const Templates = lazy(() => import("./pages/Templates"));
@@ -24,6 +25,7 @@ const History = lazy(() => import("./pages/History"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ImageToDesign = lazy(() => import("./pages/ImageToDesign"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -52,6 +54,8 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/auth/signup" element={<SignUpPage />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/verify-email" element={<VerifyEmail />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/generator" element={<ProtectedRoute><Generator /></ProtectedRoute>} />
                     <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
