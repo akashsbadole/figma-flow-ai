@@ -560,4 +560,31 @@ export const api = {
     });
     return handleResponse(res) as Promise<{ customerId: string }>;
   },
+
+  async requestPasswordReset(email: string): Promise<null> {
+    const res = await fetch(`${API_URL}/api/auth/request-password-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(res) as Promise<null>;
+  },
+
+  async resetPassword(token: string, password: string): Promise<null> {
+    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword: password }),
+    });
+    return handleResponse(res) as Promise<null>;
+  },
+
+  async verifyEmail(token: string): Promise<{ email: string }> {
+    const res = await fetch(`${API_URL}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    return handleResponse(res) as Promise<{ email: string }>;
+  },
 };
