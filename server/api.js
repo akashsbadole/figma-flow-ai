@@ -177,7 +177,7 @@ let miniMaxClient = null;
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   // Use gemini-1.5-flash as the default stable model
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
   geminiModel = genAI.getGenerativeModel({ model: modelName });
 }
 
@@ -1211,7 +1211,7 @@ Return a JSON object containing variants, a design system, and template suggesti
 ## SCHEMA
 {
   "variants": [
-    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "css": "...", "metadata": { "extractedTokens": { "colors": [], "fonts": [] } } }
+    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "css": "...", "metadata": { "type": "PAGE_LAYOUT", "extractedTokens": { "colors": [], "fonts": [] } } }
   ],
   "designSystem": {
     "name": "Brand Design System",
@@ -1234,7 +1234,8 @@ Device: ${device.label} (${device.width}x${device.height})
 Variant Count: ${variantCount}
 ${referenceImage ? "Use the provided reference image for layout and aesthetic guidance." : ""}
 
-Produce ${variantCount} high-quality design variants. Ensure SVGs are Figma-optimized.`;
+Produce ${variantCount} high-quality design variants. Ensure SVGs are Figma-optimized.
+Also identify the primary design category for this request (e.g., UI_COMPONENT, PAGE_LAYOUT, SYSTEM_DESIGN, DATA_VIZ, INFOGRAPHIC).`;
 
     let result;
     if (referenceImage) {
@@ -1254,6 +1255,47 @@ Produce ${variantCount} high-quality design variants. Ensure SVGs are Figma-opti
         v.metadata.extractedTokens = extractTokensFromSVG(v.svg);
         return v;
       });
+    }
+
+    // Fetch relevant templates from database to augment the AI response
+    // This reduces the reliance on AI for standard templates
+    let dbTemplates = [];
+    try {
+      const category = result.variants?.[0]?.metadata?.type || 'PAGE_LAYOUT';
+      const templateResult = await pool.query(
+        'SELECT id, name, category, html_code, css_code, svg_code, metadata FROM public.templates WHERE metadata->>\'type\' = $1 OR category ILIKE $2 LIMIT 6',
+        [category, `%${category}%`]
+      );
+
+      dbTemplates = templateResult.rows.map(t => ({
+        id: t.id,
+        name: t.name,
+        category: t.category,
+        html: t.html_code || '',
+        css: t.css_code || '',
+        svg: t.svg_code,
+        metadata: t.metadata
+      }));
+    } catch (dbError) {
+      console.error('Error fetching augmented templates:', dbError);
+    }
+
+    // Merge DB templates into the response if AI didn't provide enough or as additional options
+    if (result.templates) {
+      const existingScreens = result.templates.screens || [];
+      result.templates.screens = [...existingScreens, ...dbTemplates.filter(t => t.metadata?.type === 'PAGE_LAYOUT')].slice(0, 8);
+
+      const existingComps = result.templates.components || [];
+      result.templates.components = [...existingComps, ...dbTemplates.filter(t => t.metadata?.type === 'UI_COMPONENT')].slice(0, 8);
+    } else {
+      result.templates = {
+        screens: dbTemplates.filter(t => t.metadata?.type === 'PAGE_LAYOUT'),
+        components: dbTemplates.filter(t => t.metadata?.type === 'UI_COMPONENT'),
+        layouts: [],
+        formPatterns: dbTemplates.filter(t => t.metadata?.subtype === 'form'),
+        dataDisplay: dbTemplates.filter(t => t.metadata?.type === 'DATA_VIZ'),
+        navigationPatterns: dbTemplates.filter(t => t.category === 'Navigation')
+      };
     }
 
     successResponse(res, {
