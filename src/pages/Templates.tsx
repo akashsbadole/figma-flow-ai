@@ -19,8 +19,9 @@ interface Template {
   category: string;
   thumbnail_url: string | null;
   tags: string[] | null;
-  html_code: string;
-  css_code: string;
+  html_code: string | null;
+  css_code: string | null;
+  svg_code: string | null;
   is_premium: boolean | null;
 }
 
@@ -107,12 +108,16 @@ const Templates = () => {
     }
   };
 
-  const downloadTemplate = (template: Template, format: "html" | "code") => {
-    const content =
-      format === "html"
-        ? `<!DOCTYPE html>\n<html>\n<head>\n<style>\n${template.css_code}\n</style>\n</head>\n<body>\n${template.html_code}\n</body>\n</html>`
-        : `/* HTML */\n${template.html_code}\n\n/* CSS */\n${template.css_code}`;
-    const blob = new Blob([content], { type: "text/plain" });
+  const downloadTemplate = (template: Template, format: "html" | "code" | "svg") => {
+    let content = "";
+    if (format === "svg" && template.svg_code) {
+      content = template.svg_code;
+    } else if (format === "html") {
+      content = `<!DOCTYPE html>\n<html>\n<head>\n<style>\n${template.css_code || ""}\n</style>\n</head>\n<body>\n${template.html_code || template.svg_code || ""}\n</body>\n</html>`;
+    } else {
+      content = `/* HTML */\n${template.html_code || ""}\n\n/* CSS */\n${template.css_code || ""}`;
+    }
+    const blob = new Blob([content], { type: format === "svg" ? "image/svg+xml" : "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -123,7 +128,7 @@ const Templates = () => {
   };
 
   const copyToFigma = async (template: Template) => {
-    const html = `<style>${template.css_code}</style>${template.html_code}`;
+    const html = template.svg_code || `<style>${template.css_code || ""}</style>${template.html_code || ""}`;
     try {
       const htmlBlob = new Blob([html], { type: "text/html" });
       const textBlob = new Blob([html], { type: "text/plain" });
@@ -182,7 +187,9 @@ const Templates = () => {
                 <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group border-border/50">
                   <div className="aspect-video bg-muted relative overflow-hidden">
                     <iframe
-                      srcDoc={`<style>body{margin:0;transform:scale(0.5);transform-origin:0 0;width:200%;height:200%;}${template.css_code}</style>${template.html_code}`}
+                      srcDoc={template.svg_code ?
+                        `<style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;}svg{max-width:100%;max-height:100%;}</style>${template.svg_code}` :
+                        `<style>body{margin:0;transform:scale(0.5);transform-origin:0 0;width:200%;height:200%;}${template.css_code || ""}</style>${template.html_code || ""}`}
                       className="w-full h-full pointer-events-none"
                       title={template.name}
                       sandbox=""
@@ -214,9 +221,15 @@ const Templates = () => {
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => copyToFigma(template)}>
                         <Copy className="h-3 w-3 mr-1" /> Figma
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "html")}>
-                        <Download className="h-3 w-3 mr-1" /> HTML
-                      </Button>
+                      {template.svg_code ? (
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "svg")}>
+                          <Download className="h-3 w-3 mr-1" /> SVG
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "html")}>
+                          <Download className="h-3 w-3 mr-1" /> HTML
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => downloadTemplate(template, "code")}>
                         <Code className="h-3 w-3 mr-1" /> Code
                       </Button>
@@ -238,33 +251,62 @@ const Templates = () => {
               <Tabs defaultValue="preview">
                 <TabsList>
                   <TabsTrigger value="preview">Preview</TabsTrigger>
-                  <TabsTrigger value="html">HTML</TabsTrigger>
-                  <TabsTrigger value="css">CSS</TabsTrigger>
+                  {previewTemplate.svg_code ? (
+                    <TabsTrigger value="svg">SVG</TabsTrigger>
+                  ) : (
+                    <>
+                      <TabsTrigger value="html">HTML</TabsTrigger>
+                      <TabsTrigger value="css">CSS</TabsTrigger>
+                    </>
+                  )}
                 </TabsList>
                 <TabsContent value="preview" className="mt-4">
-                  <div className="rounded-lg overflow-hidden border border-border">
-                    <iframe srcDoc={`<style>${previewTemplate.css_code}</style>${previewTemplate.html_code}`} className="w-full h-[500px]" title="Template preview" sandbox="allow-scripts" />
+                  <div className="rounded-lg overflow-hidden border border-border bg-muted/50 flex items-center justify-center">
+                    <iframe
+                      srcDoc={previewTemplate.svg_code ?
+                        `<style>body{margin:0;display:flex;align-items:center;justify-content:center;height:500px;}svg{max-width:100%;max-height:100%;}</style>${previewTemplate.svg_code}` :
+                        `<style>body{margin:0;}${previewTemplate.css_code || ""}</style>${previewTemplate.html_code || ""}`}
+                      className="w-full h-[500px]"
+                      title="Template preview"
+                      sandbox="allow-scripts"
+                    />
                   </div>
                 </TabsContent>
-                <TabsContent value="html" className="mt-4">
-                  <pre className="rounded-lg bg-muted p-4 overflow-auto text-sm font-mono max-h-[400px]">
-                    <code>{previewTemplate.html_code}</code>
-                  </pre>
-                </TabsContent>
-                <TabsContent value="css" className="mt-4">
-                  <pre className="rounded-lg bg-muted p-4 overflow-auto text-sm font-mono max-h-[400px]">
-                    <code>{previewTemplate.css_code}</code>
-                  </pre>
-                </TabsContent>
+                {previewTemplate.svg_code ? (
+                  <TabsContent value="svg" className="mt-4">
+                    <pre className="rounded-lg bg-muted p-4 overflow-auto text-sm font-mono max-h-[400px]">
+                      <code>{previewTemplate.svg_code}</code>
+                    </pre>
+                  </TabsContent>
+                ) : (
+                  <>
+                    <TabsContent value="html" className="mt-4">
+                      <pre className="rounded-lg bg-muted p-4 overflow-auto text-sm font-mono max-h-[400px]">
+                        <code>{previewTemplate.html_code}</code>
+                      </pre>
+                    </TabsContent>
+                    <TabsContent value="css" className="mt-4">
+                      <pre className="rounded-lg bg-muted p-4 overflow-auto text-sm font-mono max-h-[400px]">
+                        <code>{previewTemplate.css_code}</code>
+                      </pre>
+                    </TabsContent>
+                  </>
+                )}
               </Tabs>
             )}
             <div className="flex gap-2 justify-end mt-4">
               <Button variant="outline" onClick={() => previewTemplate && copyToFigma(previewTemplate)}>
                 <Copy className="h-4 w-4 mr-1" /> Copy for Figma
               </Button>
-              <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "html")}>
-                <Download className="h-4 w-4 mr-1" /> Download HTML
-              </Button>
+              {previewTemplate?.svg_code ? (
+                <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "svg")}>
+                  <Download className="h-4 w-4 mr-1" /> Download SVG
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "html")}>
+                  <Download className="h-4 w-4 mr-1" /> Download HTML
+                </Button>
+              )}
               <Button variant="outline" onClick={() => previewTemplate && downloadTemplate(previewTemplate, "code")}>
                 <Code className="h-4 w-4 mr-1" /> Download Code
               </Button>

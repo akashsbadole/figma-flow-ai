@@ -58,8 +58,9 @@ export interface Template {
   description: string;
   category: string;
   tags: string[];
-  html_code: string;
-  css_code: string;
+  html_code: string | null;
+  css_code: string | null;
+  svg_code: string | null;
   preview_url: string;
   created_at: string;
   is_premium: boolean;
