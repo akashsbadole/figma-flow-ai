@@ -218,7 +218,7 @@ const Generator = () => {
       <div className="flex flex-col h-[calc(100vh-3.5rem)]">
         {!hasResults && !anyLoading && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
-            <div className="absolute top-4 right-4 w-64 z-10">
+            <div className="absolute top-20 right-4 w-64 z-10">
               <Select
                 value={selectedProjectId || "none"}
                 onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
