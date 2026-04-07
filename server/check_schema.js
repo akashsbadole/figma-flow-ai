@@ -17,7 +17,7 @@ async function checkSchema() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS public.clerk_id_mapping (
         clerk_id VARCHAR(255) PRIMARY KEY,
-        supabase_id UUID NOT NULL UNIQUE,
+        supabase_id UUID NOT NULL UNIQUE, -- Keeping column name for compatibility, but represents local UUID
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);

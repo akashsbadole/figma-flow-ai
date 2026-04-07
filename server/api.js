@@ -325,8 +325,8 @@ const isUUID = (userId) => {
   return userId && uuidRegex.test(userId);
 };
 
-// Look up Supabase UUID from Clerk ID
-const getSupabaseIdFromClerkId = async (clerkId) => {
+// Look up local user UUID from Clerk ID
+const getLocalUserIdFromClerkId = async (clerkId) => {
   try {
     const result = await pool.query(
       'SELECT supabase_id FROM clerk_id_mapping WHERE clerk_id = $1',
@@ -342,34 +342,34 @@ const getSupabaseIdFromClerkId = async (clerkId) => {
   }
 };
 
-// Create a new Supabase user and mapping for a Clerk user
-const createSupabaseUserForClerkUser = async (clerkId, email = null) => {
+// Create a new local user and mapping for a Clerk user
+const createLocalUserForClerkUser = async (clerkId, email = null) => {
   try {
-    // Generate a new UUID for the Supabase user using PostgreSQL's built-in function
+    // Generate a new UUID for the local user using PostgreSQL's built-in function
     const result = await pool.query('SELECT gen_random_uuid() as uuid');
-    const supabaseId = result.rows[0].uuid;
+    const localUserId = result.rows[0].uuid;
 
     // Create entry in users table first to satisfy foreign key constraints
     await pool.query(
       'INSERT INTO public.users (id, email, role) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email WHERE public.users.email IS NULL',
-      [supabaseId, email, 'user']
+      [localUserId, email, 'user']
     );
 
     // Insert the mapping
     await pool.query(
       'INSERT INTO clerk_id_mapping (clerk_id, supabase_id) VALUES ($1, $2) ON CONFLICT (clerk_id) DO UPDATE SET supabase_id = $2',
-      [clerkId, supabaseId]
+      [clerkId, localUserId]
     );
 
-    console.log(`Created new Supabase user mapping: Clerk ${clerkId} -> Supabase ${supabaseId}${email ? ` (${email})` : ''}`);
-    return supabaseId;
+    console.log(`Created new local user mapping: Clerk ${clerkId} -> Local ${localUserId}${email ? ` (${email})` : ''}`);
+    return localUserId;
   } catch (error) {
-    console.error('Error creating Supabase user for Clerk user:', error);
+    console.error('Error creating local user for Clerk user:', error);
     return null;
   }
 };
 
-// Get the resolved user ID (translates Clerk ID to Supabase UUID if needed)
+// Get the resolved user ID (translates Clerk ID to local UUID if needed)
 const resolveUserId = async (userId, req = null) => {
   if (!userId) return null;
 
@@ -382,16 +382,16 @@ const resolveUserId = async (userId, req = null) => {
   if (isClerkId(userId)) {
     try {
       // First try to find existing mapping
-      let supabaseId = await getSupabaseIdFromClerkId(userId);
+      let localUserId = await getLocalUserIdFromClerkId(userId);
 
-      // If no mapping exists, create a new Supabase user
-      if (!supabaseId) {
+      // If no mapping exists, create a new local user
+      if (!localUserId) {
         // Try to get email from request headers if provided
         const email = req?.headers?.['x-user-email'];
-        supabaseId = await createSupabaseUserForClerkUser(userId, email);
+        localUserId = await createLocalUserForClerkUser(userId, email);
       }
 
-      return supabaseId;
+      return localUserId;
     } catch (e) {
       console.error('resolveUserId error:', e);
       return null;
