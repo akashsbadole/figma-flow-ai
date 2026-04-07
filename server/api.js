@@ -177,7 +177,7 @@ let miniMaxClient = null;
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   // Use gemini-1.5-flash as the default stable model
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   geminiModel = genAI.getGenerativeModel({ model: modelName });
 }
 
@@ -411,6 +411,25 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
     successResponse(res, result.rows, 'Projects retrieved');
   } catch (error) {
     console.error('API Error - /api/projects:', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/templates', authMiddleware, async (req, res) => {
+  try {
+    const { name, description, category, html_code, css_code, svg_code, tags, metadata } = req.body;
+    if (!name || !category) {
+      return errorResponse(res, 400, 'Name and category are required', 'VALIDATION_ERROR');
+    }
+
+    const result = await pool.query(
+      `INSERT INTO public.templates (name, description, category, html_code, css_code, svg_code, tags, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, description, category, html_code || '', css_code || '', svg_code, tags || [], metadata || {}]
+    );
+    successResponse(res, result.rows[0], 'Template created', 201);
+  } catch (error) {
+    console.error('API Error - /api/templates (POST):', error);
     errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
   }
 });

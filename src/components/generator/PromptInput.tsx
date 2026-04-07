@@ -7,9 +7,14 @@ import { api } from "@/integrations/neon/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface PromptInputProps {
-  onGenerate: (prompt: string, deviceType: string, referenceImage?: string) => void;
+  onGenerate: (prompt: string, deviceType: string, referenceImage?: string, category?: string) => void;
   generating: boolean;
 }
+
+const categories = [
+  { id: "UI_DESIGN", label: "UI Design", icon: Monitor },
+  { id: "SYSTEM_DESIGN", label: "System Design", icon: Wand2 },
+];
 
 const devices = [
   { id: "mobile", label: "App", icon: Smartphone },
@@ -28,6 +33,7 @@ const examples = [
 export function PromptInput({ onGenerate, generating }: PromptInputProps) {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
+  const [category, setCategory] = useState("UI_DESIGN");
   const [deviceType, setDeviceType] = useState("mobile");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
@@ -58,7 +64,7 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
       const finalPrompt = parameters.length > 0
         ? `${prompt}\n\nParameters: ${parameters.map(p => `${p.label}: ${p.value}`).join(", ")}`
         : prompt;
-      onGenerate(finalPrompt.trim(), deviceType, referenceImage || undefined);
+      onGenerate(finalPrompt.trim(), deviceType, referenceImage || undefined, category);
     }
   };
 
@@ -224,8 +230,27 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
               <span className="hidden sm:inline">Enhance</span>
             </Button>
 
+          {/* Category selector */}
+          <div className="flex items-center bg-muted rounded-lg p-0.5 ml-2">
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setCategory(c.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                  category === c.id
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <c.icon className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{c.label}</span>
+              </button>
+            ))}
+          </div>
+
             {/* Device selector */}
-            <div className="flex items-center bg-muted rounded-lg p-0.5">
+          <div className="flex items-center bg-muted rounded-lg p-0.5 ml-2">
               {devices.map((d) => (
                 <button
                   key={d.id}

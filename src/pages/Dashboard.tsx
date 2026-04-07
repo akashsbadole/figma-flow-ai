@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Wand2, LayoutGrid, Palette, FolderOpen, Plus, Zap, Crown, TrendingUp } from "lucide-react";
+import { Wand2, LayoutGrid, Palette, FolderOpen, Plus, Zap, Crown, TrendingUp, Sparkles } from "lucide-react";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -76,6 +76,46 @@ const Dashboard = () => {
           </h1>
           <p className="text-muted-foreground">What would you like to create today?</p>
         </motion.div>
+
+        {/* Quick Start for New Users */}
+        {!loading && projects.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-3xl p-8 gradient-primary text-primary-foreground shadow-glow relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Sparkles className="h-32 w-32" />
+            </div>
+            <div className="relative z-10 max-w-2xl">
+              <h2 className="text-2xl font-bold mb-2">Ready to start your first design?</h2>
+              <p className="text-primary-foreground/80 mb-6">
+                Our AI-powered generator can create UI variants, complete design systems, and architecture diagrams in seconds.
+                Start by describing your idea.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => navigate("/generator")}
+                  className="font-semibold"
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Try AI Generator
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-white/10 border-white/20 hover:bg-white/20 text-white"
+                  onClick={() => navigate("/design-system")}
+                >
+                  <Palette className="h-4 w-4 mr-2" />
+                  Build Design System
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Usage Stats */}
         {subscription && (
