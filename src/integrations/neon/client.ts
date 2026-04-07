@@ -310,6 +310,16 @@ export const api = {
     return handleResponse(res) as Promise<Template[]>;
   },
 
+  async createTemplate(data: { name: string; description?: string; category: string; html_code?: string; css_code?: string; svg_code?: string; tags?: string[]; metadata?: object }): Promise<Template> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/templates`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res) as Promise<Template>;
+  },
+
   async getTemplate(id: string): Promise<Template | null> {
     const res = await fetch(`${API_URL}/api/templates/${id}`);
     return handleResponse(res) as Promise<Template | null>;

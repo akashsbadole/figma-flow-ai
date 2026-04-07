@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code, Download, Check, Loader2, LayoutTemplate, FileText, Database, Navigation } from "lucide-react";
+import { Code, Download, Check, Loader2, LayoutTemplate, FileText, Database, Navigation, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/integrations/neon/client";
+import { cn } from "@/lib/utils";
 
 interface TemplateItem {
   id: string;
@@ -29,6 +31,7 @@ interface TemplatesPreviewProps {
 function TemplateCard({ item, width, height, isScreen }: { item: TemplateItem; width: number; height: number; isScreen: boolean }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const cardHeight = isScreen ? height : 400;
   const scale = isScreen ? Math.min(280 / width, 320 / height) : Math.min(280 / width, 200 / 400);
@@ -50,6 +53,23 @@ function TemplateCard({ item, width, height, isScreen }: { item: TemplateItem; w
     a.download = `${item.name.replace(/\s+/g, "-").toLowerCase()}.html`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSave = async () => {
+    try {
+      await api.createTemplate({
+        name: item.name,
+        category: item.category,
+        html_code: item.html,
+        css_code: item.css,
+        tags: [item.category.toLowerCase()],
+        metadata: { generated: true }
+      });
+      setSaved(true);
+      toast({ title: "Saved to Library!", description: "You can find this in your templates." });
+    } catch (err: any) {
+      toast({ title: "Failed to save", description: err.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -77,6 +97,9 @@ function TemplateCard({ item, width, height, isScreen }: { item: TemplateItem; w
           <p className="text-[10px] text-muted-foreground">{item.category}</p>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} title="Save to Library">
+            <Heart className={cn("h-3.5 w-3.5", saved && "fill-primary text-primary")} />
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={copyCode} title="Copy code">
             {copied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Code className="h-3.5 w-3.5" />}
           </Button>

@@ -78,7 +78,7 @@ const Generator = () => {
   const [tplLoading, setTplLoading] = useState(false);
   const [tplError, setTplError] = useState<string | null>(null);
 
-  const handleGenerate = async (prompt: string, deviceType: string, referenceImage?: string) => {
+  const handleGenerate = async (prompt: string, deviceType: string, referenceImage?: string, category?: string) => {
     if (!user) return;
     const allowed = await checkAndIncrement();
     if (!allowed) return;
@@ -100,7 +100,11 @@ const Generator = () => {
       setDsLoading(true);
       setTplLoading(true);
 
-      const data = await api.generateFullDesign({ prompt, deviceType, variantCount: 4, referenceImage });
+      const finalPrompt = category === "SYSTEM_DESIGN"
+        ? `SYSTEM DESIGN & ARCHITECTURE DIAGRAM: ${prompt}. Focus on service boxes, database cylinders, and labeled arrows showing data flow.`
+        : prompt;
+
+      const data = await api.generateFullDesign({ prompt: finalPrompt, deviceType, variantCount: 4, referenceImage });
 
       if (data.variants?.length > 0) {
         const resultData = {
@@ -142,6 +146,16 @@ const Generator = () => {
 
       if (data.designSystem) {
         setDesignSystem(data.designSystem);
+        if (selectedProjectId) {
+          api.createDesignSystem({
+            project_id: selectedProjectId,
+            name: data.designSystem.name || `${currentPrompt} System`,
+            colors: data.designSystem.colors,
+            typography: data.designSystem.typography,
+            spacing: data.designSystem.spacing,
+            components: data.designSystem.components,
+          }).catch(console.error);
+        }
       }
 
       if (data.templates) {
