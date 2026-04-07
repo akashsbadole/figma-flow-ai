@@ -572,6 +572,15 @@ export const api = {
     return handleResponse(res) as Promise<{ customerId: string }>;
   },
 
+  async requestUsernameRecovery(displayName: string): Promise<null> {
+    const res = await fetch(`${API_URL}/api/auth/forgot-username`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: displayName }),
+    });
+    return handleResponse(res) as Promise<null>;
+  },
+
   async requestPasswordReset(email: string): Promise<null> {
     const res = await fetch(`${API_URL}/api/auth/request-password-reset`, {
       method: 'POST',

@@ -16,6 +16,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const SignUpPage = lazy(() => import("./pages/SignUp"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ForgotUsername = lazy(() => import("./pages/ForgotUsername"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Generator = lazy(() => import("./pages/Generator"));
 const Templates = lazy(() => import("./pages/Templates"));
@@ -55,6 +56,7 @@ const App = () => (
                     <Route path="/auth/signup" element={<SignUpPage />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/forgot-username" element={<ForgotUsername />} />
                     <Route path="/verify-email" element={<VerifyEmail />} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/generator" element={<ProtectedRoute><Generator /></ProtectedRoute>} />
