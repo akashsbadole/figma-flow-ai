@@ -60,12 +60,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isTestMode]);
 
-  const signIn = async (_email: string, _password: string) => {
-    // Handled by Clerk
+  const signIn = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Login failed');
+      }
+
+      if (result.success) {
+        localStorage.setItem('clerk_user', JSON.stringify(result.data));
+        // Force a refresh of the user state by reloading or using a state setter if available
+        window.location.href = '/dashboard';
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
-  const signUp = async (_email: string, _password: string, _displayName?: string) => {
-    // Handled by Clerk
+  const signUp = async (email: string, password: string, displayName?: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, displayName }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Registration failed');
+      }
+
+      if (result.success) {
+        // Automatically login after registration
+        await signIn(email, password);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {

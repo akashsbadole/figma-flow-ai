@@ -30,12 +30,18 @@ const Auth = () => {
             }
           }}
         />
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-col gap-2 text-center">
           <button
             onClick={() => navigate("/forgot-password")}
-            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center gap-1"
           >
             Forgot your password?
+          </button>
+          <button
+            onClick={() => navigate("/forgot-username")}
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center gap-1"
+          >
+            Forgot your username?
           </button>
         </div>
       </div>

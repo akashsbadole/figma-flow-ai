@@ -17,7 +17,7 @@ async function checkSchema() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS public.clerk_id_mapping (
         clerk_id VARCHAR(255) PRIMARY KEY,
-        supabase_id UUID NOT NULL UNIQUE,
+        supabase_id UUID NOT NULL UNIQUE, -- Keeping column name for compatibility, but represents local UUID
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -28,11 +28,20 @@ async function checkSchema() {
       CREATE TABLE IF NOT EXISTS public.users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE,
+        password_hash TEXT,
         role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // Add password_hash if it doesn't exist
+    try {
+      await pool.query('ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_hash TEXT');
+    } catch (e) {
+      console.warn('Note: users.password_hash column might already exist.');
+    }
+
     console.log('✓ users table verified');
 
     // 3. Ensure profiles table exists with is_enabled

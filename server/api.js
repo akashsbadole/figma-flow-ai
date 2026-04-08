@@ -89,7 +89,7 @@ async function authMiddleware(req, res, next) {
       return errorResponse(res, 401, 'Unauthorized - Authentication required', 'UNAUTHORIZED');
     }
 
-    const userId = await resolveUserId(rawUserId);
+    const userId = await resolveUserId(rawUserId, req);
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized - User not found', 'UNAUTHORIZED');
     }
@@ -120,7 +120,7 @@ async function adminAuthMiddleware(req, res, next) {
       return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
     }
 
-    const userId = await resolveUserId(rawUserId);
+    const userId = await resolveUserId(rawUserId, req);
     if (!userId) {
       return errorResponse(res, 401, 'Unauthorized', 'UNAUTHORIZED');
     }
@@ -325,8 +325,8 @@ const isUUID = (userId) => {
   return userId && uuidRegex.test(userId);
 };
 
-// Look up Supabase UUID from Clerk ID
-const getSupabaseIdFromClerkId = async (clerkId) => {
+// Look up local user UUID from Clerk ID
+const getLocalUserIdFromClerkId = async (clerkId) => {
   try {
     const result = await pool.query(
       'SELECT supabase_id FROM clerk_id_mapping WHERE clerk_id = $1',
@@ -342,35 +342,35 @@ const getSupabaseIdFromClerkId = async (clerkId) => {
   }
 };
 
-// Create a new Supabase user and mapping for a Clerk user
-const createSupabaseUserForClerkUser = async (clerkId) => {
+// Create a new local user and mapping for a Clerk user
+const createLocalUserForClerkUser = async (clerkId, email = null) => {
   try {
-    // Generate a new UUID for the Supabase user using PostgreSQL's built-in function
+    // Generate a new UUID for the local user using PostgreSQL's built-in function
     const result = await pool.query('SELECT gen_random_uuid() as uuid');
-    const supabaseId = result.rows[0].uuid;
+    const localUserId = result.rows[0].uuid;
 
     // Create entry in users table first to satisfy foreign key constraints
     await pool.query(
-      'INSERT INTO public.users (id, role) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
-      [supabaseId, 'user']
+      'INSERT INTO public.users (id, email, role) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email WHERE public.users.email IS NULL',
+      [localUserId, email, 'user']
     );
 
     // Insert the mapping
     await pool.query(
       'INSERT INTO clerk_id_mapping (clerk_id, supabase_id) VALUES ($1, $2) ON CONFLICT (clerk_id) DO UPDATE SET supabase_id = $2',
-      [clerkId, supabaseId]
+      [clerkId, localUserId]
     );
 
-    console.log(`Created new Supabase user mapping: Clerk ${clerkId} -> Supabase ${supabaseId}`);
-    return supabaseId;
+    console.log(`Created new local user mapping: Clerk ${clerkId} -> Local ${localUserId}${email ? ` (${email})` : ''}`);
+    return localUserId;
   } catch (error) {
-    console.error('Error creating Supabase user for Clerk user:', error);
+    console.error('Error creating local user for Clerk user:', error);
     return null;
   }
 };
 
-// Get the resolved user ID (translates Clerk ID to Supabase UUID if needed)
-const resolveUserId = async (userId) => {
+// Get the resolved user ID (translates Clerk ID to local UUID if needed)
+const resolveUserId = async (userId, req = null) => {
   if (!userId) return null;
 
   // If it's already a UUID, return it directly
@@ -382,14 +382,16 @@ const resolveUserId = async (userId) => {
   if (isClerkId(userId)) {
     try {
       // First try to find existing mapping
-      let supabaseId = await getSupabaseIdFromClerkId(userId);
+      let localUserId = await getLocalUserIdFromClerkId(userId);
 
-      // If no mapping exists, create a new Supabase user
-      if (!supabaseId) {
-        supabaseId = await createSupabaseUserForClerkUser(userId);
+      // If no mapping exists, create a new local user
+      if (!localUserId) {
+        // Try to get email from request headers if provided
+        const email = req?.headers?.['x-user-email'];
+        localUserId = await createLocalUserForClerkUser(userId, email);
       }
 
-      return supabaseId;
+      return localUserId;
     } catch (e) {
       console.error('resolveUserId error:', e);
       return null;
@@ -1548,6 +1550,155 @@ async function ensureAuthTables() {
 ensureAuthTables();
 
 // Auth Endpoints
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, displayName } = req.body;
+
+    if (!email || !password) {
+      return errorResponse(res, 400, 'Email and password are required', 'VALIDATION_ERROR');
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM public.users WHERE email = $1',
+      [normalizedEmail]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return errorResponse(res, 400, 'User already exists', 'USER_ALREADY_EXISTS');
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    // Create user
+    const userResult = await pool.query(
+      'INSERT INTO public.users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
+      [normalizedEmail, passwordHash]
+    );
+
+    const userId = userResult.rows[0].id;
+
+    // Create profile
+    await pool.query(
+      'INSERT INTO public.profiles (user_id, display_name) VALUES ($1, $2)',
+      [userId, displayName || normalizedEmail.split('@')[0]]
+    );
+
+    // Create subscription
+    await pool.query(
+      'INSERT INTO public.user_subscriptions (user_id, plan, status, generations_limit) VALUES ($1, $2, $3, $4)',
+      [userId, 'free', 'active', 5]
+    );
+
+    // Create user role
+    await pool.query(
+      'INSERT INTO public.user_roles (user_id, role) VALUES ($1, $2)',
+      [userId, 'user']
+    );
+
+    successResponse(res, { id: userId, email: normalizedEmail }, 'User registered successfully', 201);
+  } catch (error) {
+    console.error('Registration error:', error);
+    errorResponse(res, 500, 'Failed to register user', 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return errorResponse(res, 400, 'Email and password are required', 'VALIDATION_ERROR');
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const userResult = await pool.query(
+      'SELECT id, email, password_hash FROM public.users WHERE email = $1',
+      [normalizedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      return errorResponse(res, 401, 'Invalid email or password', 'INVALID_CREDENTIALS');
+    }
+
+    const user = userResult.rows[0];
+
+    if (!user.password_hash) {
+      return errorResponse(res, 401, 'Invalid email or password', 'INVALID_CREDENTIALS');
+    }
+
+    const isValid = await verifyPassword(password, user.password_hash);
+
+    if (!isValid) {
+      return errorResponse(res, 401, 'Invalid email or password', 'INVALID_CREDENTIALS');
+    }
+
+    // Get profile data
+    const profileResult = await pool.query(
+      'SELECT display_name, avatar_url FROM public.profiles WHERE user_id = $1',
+      [user.id]
+    );
+
+    const profile = profileResult.rows[0] || {};
+
+    successResponse(res, {
+      id: user.id,
+      email: user.email,
+      display_name: profile.display_name,
+      imageUrl: profile.avatar_url
+    }, 'Logged in successfully');
+  } catch (error) {
+    console.error('Login error:', error);
+    errorResponse(res, 500, 'Failed to login', 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/auth/forgot-username', async (req, res) => {
+  try {
+    const { display_name } = req.body;
+
+    if (!display_name || typeof display_name !== 'string') {
+      return errorResponse(res, 400, 'Display name is required', 'VALIDATION_ERROR');
+    }
+
+    const profileResult = await pool.query(
+      'SELECT p.user_id, u.email FROM public.profiles p JOIN public.users u ON p.user_id = u.id WHERE p.display_name = $1',
+      [display_name.trim()]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return successResponse(res, null, 'If an account exists with this name, recovery info has been sent');
+    }
+
+    const email = profileResult.rows[0].email;
+
+    if (!email) {
+      return successResponse(res, null, 'If an account exists with this name, recovery info has been sent');
+    }
+
+    const html = `
+      <h1>Username Recovery</h1>
+      <p>You requested recovery for your Figma Flow AI account.</p>
+      <p>The email associated with the display name "<strong>${display_name}</strong>" is: <strong>${email}</strong></p>
+      <p>You can use this email to sign in or reset your password.</p>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'Username Recovery - Figma Flow AI',
+      html,
+    });
+
+    successResponse(res, null, 'If an account exists with this name, recovery info has been sent');
+  } catch (error) {
+    console.error('Forgot username error:', error);
+    errorResponse(res, 500, 'Failed to process request', 'INTERNAL_ERROR');
+  }
+});
+
 app.post('/api/auth/request-password-reset', async (req, res) => {
   try {
     const { email } = req.body;
