@@ -884,9 +884,55 @@ app.get('/api/subscription', authMiddleware, async (req, res) => {
       }
     }
 
-    successResponse(res, result.rows[0], 'Subscription retrieved');
+    // Fetch beta mode setting
+    const betaModeResult = await pool.query(
+      "SELECT value FROM public.system_settings WHERE key = 'free_beta_mode'"
+    );
+    const freeBetaMode = betaModeResult.rows.length > 0 ? betaModeResult.rows[0].value : false;
+
+    const subscription = result.rows[0];
+
+    // Transition logic: if Beta Mode is OFF but user has a beta subscription,
+    // we effectively downgrade them in the response.
+    if (!freeBetaMode && subscription.is_beta) {
+      subscription.plan = 'free';
+      subscription.generations_limit = 5;
+    }
+
+    successResponse(res, {
+      ...subscription,
+      freeBetaMode
+    }, 'Subscription retrieved');
   } catch (error) {
     console.error('API Error - /api/subscription:', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/subscription/beta-upgrade', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Check if beta mode is enabled
+    const betaModeResult = await pool.query(
+      "SELECT value FROM public.system_settings WHERE key = 'free_beta_mode'"
+    );
+    const freeBetaMode = betaModeResult.rows.length > 0 ? betaModeResult.rows[0].value : false;
+
+    if (!freeBetaMode) {
+      return errorResponse(res, 400, 'Free Beta Mode is not currently active', 'BETA_MODE_INACTIVE');
+    }
+
+    await pool.query(
+      `UPDATE public.user_subscriptions
+       SET plan = 'pro', generations_limit = 999, is_beta = true, updated_at = NOW()
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    successResponse(res, null, 'Upgraded to Pro via Beta Mode');
+  } catch (error) {
+    console.error('API Error - /api/subscription/beta-upgrade:', error);
     errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
   }
 });
@@ -902,6 +948,37 @@ app.post('/api/increment-usage', authMiddleware, async (req, res) => {
     successResponse(res, null, 'Usage incremented');
   } catch (error) {
     console.error('API Error - /api/increment-usage:', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.get('/api/admin/settings', adminAuthMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public.system_settings');
+    const settings = {};
+    result.rows.forEach(row => {
+      settings[row.key] = row.value;
+    });
+    successResponse(res, settings, 'Settings retrieved');
+  } catch (error) {
+    console.error('API Error - /api/admin/settings:', error);
+    errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
+  }
+});
+
+app.post('/api/admin/settings', adminAuthMiddleware, async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    if (!key) {
+      return errorResponse(res, 400, 'Setting key is required', 'VALIDATION_ERROR');
+    }
+    const result = await pool.query(
+      'INSERT INTO public.system_settings (key, value, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW() RETURNING *',
+      [key, JSON.stringify(value)]
+    );
+    successResponse(res, result.rows[0], 'Setting updated');
+  } catch (error) {
+    console.error('API Error - /api/admin/settings (POST):', error);
     errorResponse(res, 500, 'Internal server error', 'INTERNAL_ERROR');
   }
 });

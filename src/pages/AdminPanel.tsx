@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Shield, Users, Ban, CheckCircle, Search, Loader2, Crown, User } from "lucide-react";
+import { Shield, Users, Ban, CheckCircle, Search, Loader2, Crown, User, Settings, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 interface UserProfile {
   user_id: string;
@@ -37,10 +38,19 @@ const AdminPanel = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<UserFilter>("all");
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
+  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
   const loadUsers = async () => {
     setLoading(true);
-    const data = await api.getAdminUsers();
+    const [data, settingsData] = await Promise.all([
+      api.getAdminUsers(),
+      api.getAdminSettings()
+    ]);
+
+    if (settingsData) {
+      setSettings(settingsData);
+    }
 
     if (data?.profiles) {
       const adminSet = new Set((data.roles || []).map((r: any) => r.user_id));
@@ -128,6 +138,19 @@ const AdminPanel = () => {
     toast({ title: currentlyAdmin ? "Admin role removed" : "Admin role granted" });
   };
 
+  const updateSetting = async (key: string, value: any) => {
+    setSettingsLoading(true);
+    try {
+      await api.updateAdminSetting(key, value);
+      setSettings(prev => ({ ...prev, [key]: value }));
+      toast({ title: "Setting updated" });
+    } catch (err: any) {
+      toast({ title: "Failed to update setting", variant: "destructive" });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const filtered = users.filter((u) => {
     const matchesSearch =
       !searchQuery ||
@@ -164,6 +187,37 @@ const AdminPanel = () => {
           </h1>
           <p className="text-muted-foreground mt-1">Manage users, plans, and account status</p>
         </motion.div>
+
+        {/* Global Settings */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Global Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full gradient-primary flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">Free Beta Mode</p>
+                  <p className="text-sm text-muted-foreground">Allow everyone to use Pro features for free</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {settingsLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Switch
+                  checked={settings.free_beta_mode === true}
+                  onCheckedChange={(val) => updateSetting('free_beta_mode', val)}
+                  disabled={settingsLoading}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

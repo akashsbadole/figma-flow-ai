@@ -21,7 +21,7 @@ export function useGenerationLimit() {
         return true;
       }
 
-      if (sub.plan !== "free") {
+      if (sub.plan !== "free" || sub.freeBetaMode === true) {
         await api.incrementUsage();
         return true;
       }

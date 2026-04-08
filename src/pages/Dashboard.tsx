@@ -150,13 +150,16 @@ const Dashboard = () => {
                 <CardContent>
                   {subscription.plan === "free" ? (
                     <div className="space-y-1.5">
-                      <Progress value={(subscription.generations_used / subscription.generations_limit) * 100} className="h-2" />
+                      <Progress value={(subscription.generations_used / (subscription.generations_limit || 1)) * 100} className="h-2" />
                       <p className="text-xs text-muted-foreground">
-                        {Math.max(0, subscription.generations_limit - subscription.generations_used)} remaining
+                        {Math.max(0, (subscription.generations_limit || 0) - subscription.generations_used)} remaining
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Unlimited generations</p>
+                    <div className="space-y-1.5">
+                      <Progress value={100} className="h-2" />
+                      <p className="text-xs text-muted-foreground font-medium text-primary">Unlimited generations</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
