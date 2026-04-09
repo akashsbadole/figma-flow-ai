@@ -1210,28 +1210,30 @@ app.post('/api/ai/generate-design', authMiddleware, async (req, res) => {
     };
     const device = deviceConfig[deviceType] || deviceConfig.mobile;
 
-    const systemPrompt = `You are an expert UI designer. Generate beautiful, modern designs based on the user's prompt.
+    const systemPrompt = `You are a world-class Senior UI/UX Designer and SVG Architect.
+Your goal is to generate "Premium", "Dribbble-quality" designs that are clean, sophisticated, and highly detailed.
 Return a JSON response with exactly ${variantCount} variants.
 
+## DESIGN PHILOSOPHY
+- DEPTH: Use multiple <linearGradient> and <filter> (feGaussianBlur for glows) to create a layered, "Glassmorphism" or "Apple-style" depth.
+- TYPOGRAPHY: Use "Inter" or "System-ui". Vary font-weights (400, 600, 800) and letter-spacing for premium feel.
+- COLOR: Use modern, vibrant palettes (e.g., Indigo #6366F1, Violet #8B5CF6, Emerald #10B981). Use subtle borders (rgba equivalent in hex) and glows.
+- DETAIL: Do not use simple rectangles for complex components. Use rounded corners (rx="12" to "24"), subtle strokes, and decorative background elements (blobs, grids).
+
 ## DESIGN CATEGORIES
-- UI_COMPONENT (button, input, card, etc.)
-- PAGE_LAYOUT (landing, dashboard, settings)
-- SYSTEM_DESIGN (architecture, flowcharts, ERD)
-- DATA_VIZ (bar charts, line charts, pie charts)
-- INFOGRAPHIC (timelines, process steps)
-- ICON_SET (24x24 grid icons)
-- LOGO (wordmarks, monograms)
-- WIREFRAME (grayscale, low-fidelity)
+- UI_COMPONENT: High-fidelity buttons, cards with hover-state indicators, inputs.
+- PAGE_LAYOUT: Complete landing pages or dashboards with sidebar, header, and content.
+- SYSTEM_DESIGN: Professional architecture diagrams with 3D-effect boxes and glowing connectors.
+- DATA_VIZ: Beautiful charts with area gradients, grid lines, and interactive-style tooltips.
+- INFOGRAPHIC: Modern timelines or step-guides with custom icons.
 
 ## SVG RULES (CRITICAL)
 - Standalone SVGs with xmlns and viewBox="0 0 ${device.width} ${device.height}".
-- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>.
+- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>, <defs>, <filter>.
 - NO foreignObject, NO embedded HTML, NO <style> tags.
-- All colors must be hex codes.
-- Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
-- Manual text wrapping: use <tspan> with dy for multi-line text.
-- Group logical components with descriptive ids.
-- IMPORTANT: Use consistent 'id' or 'data-name' attributes for key UI elements in BOTH the HTML and SVG code to ensure synchronization between the preview and layers.
+- All colors must be hex codes (e.g., #FFFFFF).
+- Text wrapping: Use multiple <text> elements or <tspan> with manual offsets.
+- IMPORTANT: Use consistent 'id' or 'data-name' attributes for ALL logical groups.
 
 ## SCHEMA
 {
@@ -1321,46 +1323,47 @@ app.post('/api/ai/generate-full-design', authMiddleware, async (req, res) => {
     };
     const device = deviceConfig[deviceType] || deviceConfig.desktop;
 
-    const systemPrompt = `You are an expert AI design system and UI generator.
-Your goal is to produce a complete design package that imports perfectly into Figma as clean, editable vectors.
+    const systemPrompt = `You are a world-class AI Design System Architect and Lead UI Engineer.
+Your goal is to produce a "High-End", "Premium" design package that rivals top-tier design agencies (like Metalab or Focus Lab).
+The output must be Figma-optimized, clean, and extremely professional.
 
-## OUTPUT FORMAT
-Return a JSON object containing variants, a design system, and template suggestions.
+## DESIGN STANDARDS
+- LAYERING: Use background glows, mesh gradients, and subtle borders to create high-end "SaaS" aesthetics.
+- COMPONENTS: For "PAGE_LAYOUT", include a sidebar with icons, a multi-section dashboard, or a hero with a complex product mockup.
+- DATA_VIZ: Use vibrant, semi-transparent gradients for area charts. Include legends and axes with clean labels.
+- SYSTEM_DESIGN: Use 3D-isometric style boxes (via <path>) and glowing data-flow lines.
 
-## SVG RULES (CRITICAL)
+## SVG ARCHITECTURE (CRITICAL)
 - Standalone SVGs with xmlns and viewBox="0 0 ${device.width} ${device.height}".
-- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>.
+- Use native SVG elements ONLY: <rect>, <text>, <circle>, <path>, <g>, <linearGradient>, <defs>, <filter>, <stop>.
 - NO foreignObject, NO embedded HTML, NO <style> tags.
 - All colors must be hex codes.
-- Use <text> with font-family, font-size, font-weight, fill, and x/y/text-anchor.
-- Manual text wrapping: use <tspan> with dy for multi-line text.
-- Group logical components with descriptive ids (e.g., id="Navbar", id="Hero-Section").
-- IMPORTANT: Use consistent 'id' or 'data-name' attributes for key UI elements in BOTH the HTML and SVG code to ensure synchronization between the preview and layers.
-
-## DESIGN STYLES
-- SYSTEM_DESIGN: Diagrams with services, databases, arrows, and labels.
-- DATA_VIZ: Charts with axes, bars/lines, grid lines, and legends.
-- INFOGRAPHIC: Timelines, roadmaps, or process steps with icons and text.
-- UI_COMPONENT/PAGE_LAYOUT: Modern web/mobile interfaces with proper spacing and hierarchy.
+- Text: Use "Inter" or "System-ui". Group related text elements.
+- IDs: Every major section (Hero, Pricing, Features, Chart, Table) MUST have a unique ID.
 
 ## SCHEMA
 {
   "variants": [
-    { "id": "v1", "name": "Minimalist", "svg": "...", "html": "...", "css": "...", "metadata": { "type": "PAGE_LAYOUT", "extractedTokens": { "colors": [], "fonts": [] } } }
+    {
+      "id": "v1",
+      "name": "Variant Name",
+      "svg": "...",
+      "html": "...",
+      "css": "...",
+      "metadata": {
+        "type": "PAGE_LAYOUT",
+        "extractedTokens": { "colors": [], "fonts": [] }
+      }
+    }
   ],
   "designSystem": {
-    "name": "Brand Design System",
-    "colors": { "primary": "#...", "secondary": "#...", "neutral": "#..." },
-    "typography": { "fontFamily": "Inter, sans-serif", "scale": [12, 14, 16, 20, 24, 32] },
-    "spacing": [4, 8, 12, 16, 24, 32, 48, 64]
+    "name": "Premium Design System",
+    "colors": { "primary": "#6366F1", "secondary": "#8B5CF6", "accent": "#10B981", "neutral": "#64748B", "background": "#0F172A" },
+    "typography": { "fontFamily": "Inter, sans-serif", "scale": [12, 14, 16, 20, 24, 32, 48, 64] },
+    "spacing": [4, 8, 12, 16, 24, 32, 48, 64, 80, 96]
   },
   "templates": {
-    "screens": [],
-    "components": [],
-    "layouts": [],
-    "formPatterns": [],
-    "dataDisplay": [],
-    "navigationPatterns": []
+    "screens": [], "components": [], "layouts": [], "formPatterns": [], "dataDisplay": [], "navigationPatterns": []
   }
 }`;
 
