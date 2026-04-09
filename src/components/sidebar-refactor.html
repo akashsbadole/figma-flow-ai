@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Design Studio - Dashboard</title>
+  <style>
+    /* ============================================
+       SIDEBAR STYLES - Standard CSS
+       AI Design Studio Dashboard
+       ============================================ */
+
+    :root {
+      /* Sidebar Dimensions */
+      --sidebar-width: 260px;
+      --sidebar-width-collapsed: 70px;
+      
+      /* Colors - Light Mode */
+      --sidebar-bg: #ffffff;
+      --sidebar-foreground: #224 30% 12%;
+      --sidebar-primary: #252 85% 60%;
+      --sidebar-primary-foreground: #fff;
+      --sidebar-accent: #220 14% 94%;
+      --sidebar-accent-foreground: #224 30% 12%;
+      --sidebar-border: #220 14% 90%;
+      --sidebar-muted-foreground: #220 10% 46%;
+      
+      /* Transitions */
+      --sidebar-transition: width 200ms ease-in-out;
+      
+      /* Spacing */
+      --sidebar-item-padding: 12px;
+      --sidebar-icon-size: 20px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --sidebar-bg: #228 18% 10%;
+        --sidebar-foreground: #220 14% 96%;
+        --sidebar-primary: #252 85% 65%;
+        --sidebar-primary-foreground: #fff;
+        --sidebar-accent: #228 18% 14%;
+        --sidebar-accent-foreground: #220 14% 96%;
+        --sidebar-border: #228 18% 16%;
+        --sidebar-muted-foreground: #220 10% 55%;
+      }
+    }
+
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+    
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #224 30% 12%;
+      min-height: 100vh;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #121212;
+        color: #220 14% 96%;
+      }
+    }
+
+    /* ============================================
+       SIDEBAR CONTAINER
+       ============================================ */
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--sidebar-border);
+      display: flex;
+      flex-direction: column;
+      transition: var(--sidebar-transition);
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed {
+      width: var(--sidebar-width-collapsed);
+    }
+
+    /* Responsive: Mobile drawer */
+    @media (max-width: 767px) {
+      .sidebar {
+        transform: translateX(-100%);
+        width: var(--sidebar-width);
+        transition: transform 200ms ease-in-out, var(--sidebar-transition);
+      }
+      
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      
+      .sidebar.collapsed {
+        width: var(--sidebar-width);
+      }
+    }
+
+    /* ============================================
+       SIDEBAR HEADER
+       ============================================ */
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid var(--sidebar-border);
+      min-height: 60px;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .sidebar-brand-icon {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      color: var(--sidebar-primary);
+    }
+
+    .sidebar-brand-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--sidebar-foreground);
+      transition: opacity 150ms ease-in-out, width 150ms ease-in-out;
+    }
+
+    /* Hide text when collapsed */
+    .sidebar.collapsed .sidebar-brand-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* Toggle Button */
+    .sidebar-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--sidebar-muted-foreground);
+      transition: background 150ms, color 150ms;
+      flex-shrink: 0;
+    }
+
+    .sidebar-toggle:hover {
+      background: var(--sidebar-accent);
+      color: var(--sidebar-foreground);
+    }
+
+    @media (max-width: 767px) {
+      .sidebar-toggle {
+        display: none;
+      }
+    }
+
+    /* ============================================
+       SIDEBAR CONTENT
+       ============================================ */
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 8px;
+      overflow-x: hidden;
+    }
+
+    .sidebar-group-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--sidebar-muted-foreground);
+      padding: 8px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: opacity 150ms ease-in-out, height 150ms ease-in-out, padding 150ms ease-in-out;
+    }
+
+    .sidebar.collapsed .sidebar-group-label {
+      opacity: 0;
+      height: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       SIDEBAR NAVIGATION ITEMS
+       ============================================ */
+
+    .sidebar-nav {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sidebar-nav-item {
+      position: relative;
+    }
+
+    .sidebar-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: var(--sidebar-item-padding);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--sidebar-foreground);
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: background 150ms, color 150ms;
+      position: relative;
+    }
+
+    .sidebar-nav-link:hover {
+      background: var(--sidebar-accent);
+    }
+
+    .sidebar-nav-link.active {
+      background: var(--sidebar-accent);
+      color: var(--sidebar-primary);
+    }
+
+    /* 4px left border for active state */
+    .sidebar-nav-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 24px;
+      background: var(--sidebar-primary);
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Icons */
+    .sidebar-nav-icon {
+      width: var(--sidebar-icon-size);
+      height: var(--sidebar-icon-size);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-nav-link span {
+      transition: opacity 150ms ease-in-out, width 150ms ease-in-out;
+    }
+
+    .sidebar.collapsed .sidebar-nav-link span {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       TOOLTIPS (for collapsed state)
+       ============================================ */
+
+    .sidebar-tooltip {
+      position: absolute;
+      left: calc(var(--sidebar-width-collapsed) + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--sidebar-foreground);
+      color: var(--sidebar-bg);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 150ms, visibility 150ms;
+      z-index: 1001;
+      pointer-events: none;
+    }
+
+    .sidebar-tooltip::before {
+      content: '';
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 6px solid transparent;
+      border-right-color: var(--sidebar-foreground);
+    }
+
+    .sidebar.collapsed .sidebar-nav-item:hover .sidebar-tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    @media (max-width: 767px) {
+      .sidebar-tooltip {
+        display: none;
+      }
+    }
+
+    /* ============================================
+       SIDEBAR FOOTER
+       ============================================ */
+
+    .sidebar-footer {
+      padding: 12px 8px;
+      border-top: 1px solid var(--sidebar-border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-footer-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: var(--sidebar-item-padding);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--sidebar-muted-foreground);
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      transition: background 150ms, color 150ms;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+
+    .sidebar-footer-item:hover {
+      background: var(--sidebar-accent);
+      color: var(--sidebar-foreground);
+    }
+
+    .sidebar.collapsed .sidebar-footer-item span {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       OVERLAY (for mobile drawer)
+       ============================================ */
+
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 200ms, visibility 200ms;
+      z-index: 999;
+    }
+
+    .sidebar-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    @media (min-width: 768px) {
+      .sidebar-overlay {
+        display: none;
+      }
+    }
+
+    /* ============================================
+       MAIN CONTENT AREA
+       ============================================ */
+
+    .main-content {
+      margin-left: var(--sidebar-width);
+      transition: margin-left 200ms ease-in-out;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .main-content.sidebar-collapsed {
+      margin-left: var(--sidebar-width-collapsed);
+    }
+
+    @media (max-width: 767px) {
+      .main-content {
+        margin-left: 0;
+      }
+    }
+
+    /* ============================================
+       MOBILE MENU BUTTON
+       ============================================ */
+
+    .mobile-menu-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--sidebar-foreground);
+    }
+
+    @media (max-width: 767px) {
+      .mobile-menu-btn {
+        display: flex;
+      }
+    }
+
+    /* ============================================
+       HEADER (for demo)
+       ============================================ */
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--sidebar-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    /* ============================================
+       DEMO CONTENT
+       ============================================ */
+
+    .demo-card {
+      background: var(--sidebar-bg);
+      border: 1px solid var(--sidebar-border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 600px;
+      margin-top: 24px;
+    }
+
+    .demo-card h2 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: var(--sidebar-foreground);
+    }
+
+    .demo-card p {
+      color: var(--sidebar-muted-foreground);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <!-- Mobile Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <!-- Header -->
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <svg class="sidebar-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span class="sidebar-brand-text">AI Design Studio</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="sidebar-content">
+      <div class="sidebar-group-label">Navigation</div>
+      
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="dashboard">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="9" rx="1"/>
+              <rect x="14" y="3" width="7" height="5" rx="1"/>
+              <rect x="14" y="12" width="7" height="9" rx="1"/>
+              <rect x="3" y="16" width="7" height="5" rx="1"/>
+            </svg>
+            <span>Dashboard</span>
+          </a>
+          <div class="sidebar-tooltip">Dashboard</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link active" data-page="generator">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+            <span>AI Generator</span>
+          </a>
+          <div class="sidebar-tooltip">AI Generator</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="image-to-design">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <span>Image to Design</span>
+          </a>
+          <div class="sidebar-tooltip">Image to Design</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="my-designs">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12,6 12,12 16,14"/>
+            </svg>
+            <span>My Designs</span>
+          </a>
+          <div class="sidebar-tooltip">My Designs</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="templates">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span>Templates</span>
+          </a>
+          <div class="sidebar-tooltip">Templates</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="design-system">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="13.5" cy="6.5" r="2.5"/>
+              <circle cx="17.5" cy="10.5" r="2.5"/>
+              <circle cx="8.5" cy="7.5" r="2.5"/>
+              <circle cx="6.5" cy="12.5" r="2.5"/>
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
+            </svg>
+            <span>Design System</span>
+          </a>
+          <div class="sidebar-tooltip">Design System</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="history">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 8v4l3 3"/>
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+            <span>History</span>
+          </a>
+          <div class="sidebar-tooltip">History</div>
+        </li>
+        
+        <li class="sidebar-nav-item">
+          <a href="#" class="sidebar-nav-link" data-page="pricing">
+            <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+            <span>Pricing</span>
+          </a>
+          <div class="sidebar-tooltip">Pricing</div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <button class="sidebar-footer-item" id="themeToggle">
+        <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+        <span>Toggle Theme</span>
+      </button>
+      <button class="sidebar-footer-item" id="signOut">
+        <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+          <polyline points="16,17 21,12 16,7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content" id="mainContent">
+    <header class="app-header">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+      <h1>AI Generator</h1>
+    </header>
+    
+    <div class="demo-card">
+      <h2>Welcome to AI Design Studio</h2>
+      <p>This is a demonstration of the sidebar navigation. The sidebar is collapsible, transitioning from 260px (expanded) to 70px (collapsed). When collapsed, only icons are visible, and tooltips appear on hover.</p>
+      <p style="margin-top: 12px;"><strong>Features implemented:</strong></p>
+      <ul style="margin-top: 8px; margin-left: 20px; color: var(--sidebar-muted-foreground);">
+        <li>Collapsible sidebar (260px → 70px)</li>
+        <li>Active state with 4px purple left border</li>
+        <li>Tooltips on hover when collapsed</li>
+        <li>Mobile drawer (slides in from left under 768px)</li>
+        <li>High-density scannable layout</li>
+      </ul>
+    </div>
+  </main>
+
+  <script>
+    /* ============================================
+       SIDEBAR TOGGLE LOGIC
+       ============================================ */
+
+    (function() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const mainContent = document.getElementById('mainContent');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+
+      // Check viewport width
+      const isMobile = () => window.innerWidth < 768;
+
+      // Toggle collapsed state (desktop)
+      function toggleCollapse() {
+        if (isMobile()) {
+          // Mobile: toggle drawer
+          sidebar.classList.toggle('open');
+          sidebarOverlay.classList.toggle('visible');
+        } else {
+          // Desktop: toggle collapse
+          sidebar.classList.toggle('collapsed');
+          mainContent.classList.toggle('sidebar-collapsed');
+        }
+      }
+
+      // Event listeners
+      sidebarToggle.addEventListener('click', toggleCollapse);
+      mobileMenuBtn.addEventListener('click', toggleCollapse);
+
+      // Close mobile drawer when clicking overlay
+      sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('visible');
+      });
+
+      // Handle resize - reset states
+      window.addEventListener('resize', () => {
+        if (!isMobile()) {
+          sidebar.classList.remove('open');
+          sidebarOverlay.classList.remove('visible');
+        }
+      });
+
+      // Keyboard shortcut (Cmd/Ctrl + B)
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+          e.preventDefault();
+          toggleCollapse();
+        }
+      });
+
+      // Active state handling (for demo)
+      const navLinks = document.querySelectorAll('.sidebar-nav-link');
+      navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          navLinks.forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+          
+          // Close mobile drawer on navigation
+          if (isMobile()) {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -229,15 +229,16 @@ const Generator = () => {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background via-background to-muted/30">
         {!hasResults && !anyLoading && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
-            <div className="absolute top-20 right-4 w-64 z-10">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 gap-6 md:gap-10">
+            {/* Project Selector - Desktop */}
+            <div className="absolute top-20 right-4 w-64 z-10 hidden md:block">
               <Select
                 value={selectedProjectId || "none"}
                 onValueChange={(val) => setSelectedProjectId(val === "none" ? null : val)}
               >
-                <SelectTrigger className="w-full bg-card/50 border-border/50">
+                <SelectTrigger className="w-full bg-card/80 backdrop-blur border-border/50">
                   <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
@@ -251,12 +252,22 @@ const Generator = () => {
                 </SelectContent>
               </Select>
             </div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-3">
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Design at the speed of AI</h1>
-              <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                Generate UI variants, design systems, and templates — all at once
+
+            {/* Hero Section */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs font-medium">
+                <Sparkles className="w-3.5 h-3.5" />
+                AI-Powered Design Generation
+              </div>
+              <h1 className="text-3xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+                Design at the speed of AI
+              </h1>
+              <p className="text-muted-foreground text-base md:text-lg max-w-lg mx-auto">
+                Generate beautiful UI variants, complete design systems, and reusable templates — all from a simple text prompt.
               </p>
             </motion.div>
+
+            {/* Prompt Input */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="w-full">
               <PromptInput onGenerate={handleGenerate} generating={generating} />
             </motion.div>
@@ -264,12 +275,22 @@ const Generator = () => {
         )}
 
         {anyLoading && !result && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center animate-pulse shadow-glow">
-              <Sparkles className="h-8 w-8 text-primary-foreground" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <Sparkles className="h-10 w-10 text-white" />
+              </div>
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 animate-ping opacity-20"></div>
             </div>
-            <p className="text-muted-foreground">Generating {currentPrompt ? `"${currentPrompt}"` : "designs"}...</p>
-            <p className="text-xs text-muted-foreground/60">Creating variants, design system & templates in parallel</p>
+            <div className="text-center space-y-2">
+              <p className="text-lg font-medium">Generating{currentPrompt ? ` "${currentPrompt.slice(0, 30)}..."` : ""}</p>
+              <p className="text-sm text-muted-foreground">Creating variants, design system & templates</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
           </div>
         )}
 

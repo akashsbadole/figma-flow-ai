@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { LayoutGrid, Search, Heart, Download, Code, Eye, Copy, Check, Loader2 } from "lucide-react";
@@ -40,12 +41,16 @@ const Templates = () => {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         const data = await api.getTemplates();
         if (Array.isArray(data)) {
-          setTemplates(data as Template[]);
+          setTemplates(data as unknown as Template[]);
         } else {
           console.error('Templates API returned non-array data:', data);
           setTemplates([]);
@@ -102,6 +107,19 @@ const Templates = () => {
     return matchesSearch && matchesIndustry && matchesType;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTemplates = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  // Ensure pagination works even when filtered is empty initially
+  const showPagination = totalPages > 1 && filtered.length > 0;
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedIndustry, selectedType]);
+
   const toggleSave = async (templateId: string) => {
     if (!user) return;
     const isSaved = savedIds.has(templateId);
@@ -124,7 +142,10 @@ const Templates = () => {
   const downloadTemplate = (template: Template, format: "html" | "code" | "svg") => {
     let content = "";
     if (format === "svg" && template.svg_code) {
-      content = template.svg_code;
+      // Ensure SVG has XML declaration for better browser recognition
+      content = template.svg_code.startsWith('<?xml')
+        ? template.svg_code
+        : `<?xml version="1.0" encoding="UTF-8"?>\n${template.svg_code}`;
     } else if (format === "html") {
       content = `<!DOCTYPE html>\n<html>\n<head>\n<style>\n${template.css_code || ""}\n</style>\n</head>\n<body>\n${template.html_code || template.svg_code || ""}\n</body>\n</html>`;
     } else {
@@ -134,7 +155,7 @@ const Templates = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${template.name.toLowerCase().replace(/\s+/g, "-")}.${format === "html" ? "html" : "txt"}`;
+    a.download = `${template.name.toLowerCase().replace(/\s+/g, "-")}.${format === "html" ? "html" : format === "svg" ? "svg" : "txt"}`;
     a.click();
     URL.revokeObjectURL(url);
     toast({ title: "Downloaded!", description: `${template.name} downloaded as ${format.toUpperCase()}` });
@@ -211,25 +232,32 @@ const Templates = () => {
             <p className="text-muted-foreground">No templates found. {templates.length === 0 ? "Templates will appear here once added." : "Try a different search."}</p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((template, i) => (
-              <motion.div key={template.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group border-border/50">
-                  <div className="aspect-video bg-muted relative overflow-hidden">
-                    <iframe
-                      srcDoc={template.svg_code ?
-                        `<style>body{margin:0;display:flex;align-items:${(template as any).metadata?.type === 'FULL_PAGE' ? 'flex-start' : 'center'};justify-content:center;height:100vh;overflow:hidden;}svg{max-width:100%;${(template as any).metadata?.type === 'FULL_PAGE' ? '' : 'max-height:100%;'}}</style>${template.svg_code}` :
-                        `<style>body{margin:0;transform:scale(0.5);transform-origin:0 0;width:200%;height:200%;}${template.css_code || ""}</style>${template.html_code || ""}`}
-                      className="w-full h-full pointer-events-none"
-                      title={template.name}
-                      sandbox=""
-                    />
-                    <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                      <Button size="sm" variant="secondary" onClick={() => setPreviewTemplate(template)}>
-                        <Eye className="h-4 w-4 mr-1" /> Preview
-                      </Button>
-                    </div>
-                  </div>
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedTemplates.map((template, i) => (
+                <motion.div key={template.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group border-border/50">
+                  <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center">
+                        {template.svg_code ? (
+                          <img
+                            src={`data:image/svg+xml;base64,${btoa(template.svg_code)}`}
+                            alt={template.name}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        ) : (
+                          <iframe
+                            srcDoc={`<style>body{margin:0;padding:0;display:flex;align-items:center;justify-content:center;min-height:100vh;}${template.css_code || ""}</style>${template.html_code || ""}`}
+                            className="w-full h-full pointer-events-none"
+                            title={template.name}
+                            sandbox="allow-same-origin"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <Button size="sm" variant="secondary" onClick={() => setPreviewTemplate(template)}>
+                            <Eye className="h-4 w-4 mr-1" /> Preview
+                          </Button>
+                        </div>
+                      </div>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{template.name}</CardTitle>
@@ -267,8 +295,64 @@ const Templates = () => {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {showPagination && (
+              <div className="flex justify-center mt-8">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+
+                    {/* Page numbers */}
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <PaginationItem key={pageNum}>
+                          <PaginationLink
+                            onClick={() => setCurrentPage(pageNum)}
+                            isActive={currentPage === pageNum}
+                            className="cursor-pointer"
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+
+            {/* Results info */}
+            <div className="text-center text-sm text-muted-foreground mt-4">
+              Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length} templates
+              {filtered.length !== templates.length && ` (filtered from ${templates.length} total)`}
+            </div>
+          </>
         )}
 
         <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
@@ -292,14 +376,20 @@ const Templates = () => {
                 </TabsList>
                 <TabsContent value="preview" className="mt-4">
                   <div className="rounded-lg overflow-hidden border border-border bg-muted/50 flex items-center justify-center">
-                    <iframe
-                      srcDoc={previewTemplate.svg_code ?
-                        `<style>body{margin:0;display:flex;align-items:center;justify-content:center;height:500px;}svg{max-width:100%;max-height:100%;}</style>${previewTemplate.svg_code}` :
-                        `<style>body{margin:0;}${previewTemplate.css_code || ""}</style>${previewTemplate.html_code || ""}`}
-                      className="w-full h-[500px]"
-                      title="Template preview"
-                      sandbox="allow-scripts"
-                    />
+                    {previewTemplate.svg_code ? (
+                      <img
+                        src={`data:image/svg+xml;base64,${btoa(previewTemplate.svg_code)}`}
+                        alt={previewTemplate.name}
+                        className="w-full h-[500px] object-contain"
+                      />
+                    ) : (
+                      <iframe
+                        srcDoc={`<style>body{margin:0;padding:0;display:flex;align-items:center;justify-content:center;min-height:100vh;}${previewTemplate.css_code || ""}</style>${previewTemplate.html_code || ""}`}
+                        className="w-full h-[500px]"
+                        title="Template preview"
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    )}
                   </div>
                 </TabsContent>
                 {previewTemplate.svg_code ? (

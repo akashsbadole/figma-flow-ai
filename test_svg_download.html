@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SVG Download Test</title>
+</head>
+<body>
+    <h1>SVG Download Test</h1>
+    <button id="testDownload">Test SVG Download</button>
+
+    <script>
+        document.getElementById('testDownload').addEventListener('click', () => {
+            // Test SVG content (same format as in database)
+            const svgContent = '<svg width="120" height="40" viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg"><g id="Primary-Button"><rect width="120" height="40" rx="8" fill="#6366F1" /><text x="60" y="25" fill="white" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="middle">Button</text></g></svg>';
+
+            // Add XML declaration like our fixed code does
+            const content = svgContent.startsWith('<?xml')
+                ? svgContent
+                : `<?xml version="1.0" encoding="UTF-8"?>\n${svgContent}`;
+
+            // Create blob with correct MIME type
+            const blob = new Blob([content], { type: "image/svg+xml" });
+            const url = URL.createObjectURL(blob);
+
+            // Create download link
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "test-button.svg";
+            a.click();
+
+            URL.revokeObjectURL(url);
+            alert('SVG downloaded! Check if it opens correctly in your browser.');
+        });
+    </script>
+</body>
+</html>

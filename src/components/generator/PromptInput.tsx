@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X, Wand2, Settings2, Check } from "lucide-react";
+import { Smartphone, Tablet, Monitor, Sparkles, Loader2, Image, X, Wand2, Settings2, Check, Send, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/integrations/neon/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,7 @@ const categories = [
 ];
 
 const devices = [
-  { id: "mobile", label: "App", icon: Smartphone },
+  { id: "mobile", label: "Mobile", icon: Smartphone },
   { id: "tablet", label: "Tablet", icon: Tablet },
   { id: "desktop", label: "Web", icon: Monitor },
 ];
@@ -60,7 +60,6 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
 
   const handleSubmit = () => {
     if (prompt.trim() && !generating) {
-      // We could append parameters to prompt if we wanted them to be explicitly used
       const finalPrompt = parameters.length > 0
         ? `${prompt}\n\nParameters: ${parameters.map(p => `${p.label}: ${p.value}`).join(", ")}`
         : prompt;
@@ -78,7 +77,7 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return; // 5MB limit
+    if (file.size > 5 * 1024 * 1024) return;
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -96,59 +95,57 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6">
-      <div className="relative rounded-2xl bg-card border border-border/50 shadow-elevated overflow-hidden">
+    <div className="w-full max-w-3xl mx-auto space-y-4">
+      {/* Main Input Card */}
+      <div className="relative rounded-2xl bg-card border border-border/50 shadow-lg overflow-hidden">
         {/* Reference image preview */}
         {referencePreview && (
-          <div className="px-5 pt-4 pb-0">
-            <div className="relative inline-block">
+          <div className="px-4 pt-4 pb-0">
+            <div className="relative inline-block group">
               <img
                 src={referencePreview}
                 alt="Reference"
-                className="h-20 rounded-lg border border-border/50 object-cover"
+                className="h-16 rounded-lg border-2 border-violet-200 dark:border-violet-800 object-cover"
               />
               <button
                 onClick={removeImage}
-                className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:scale-110 transition-transform"
+                className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:scale-110 transition-transform shadow-md"
               >
                 <X className="h-3 w-3" />
               </button>
-              <span className="absolute bottom-1 left-1 text-[10px] bg-foreground/70 text-background px-1.5 py-0.5 rounded">
-                Reference
-              </span>
             </div>
           </div>
         )}
 
         <Textarea
-          placeholder={referenceImage ? "Describe what to create based on this reference..." : "Describe your design..."}
+          placeholder="Describe your design idea... (e.g., 'A dark mode crypto trading dashboard with real-time charts')"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="border-0 bg-transparent resize-none text-base min-h-[100px] p-5 pb-14 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+          className="border-0 bg-transparent resize-none text-sm min-h-[80px] p-4 pb-12 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
         />
 
         {/* Parameters display */}
         {parameters.length > 0 && (
-          <div className="px-5 pb-3 flex flex-wrap gap-2">
+          <div className="px-4 pb-2 flex flex-wrap gap-2">
             {parameters.map((param, idx) => (
               <div
                 key={idx}
                 className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all border",
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all border text-xs",
                   editingParam === idx
-                    ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+                    ? "bg-violet-500/10 border-violet-500/40 ring-1 ring-violet-500/20"
                     : "bg-muted/50 border-border/40"
                 )}
               >
                 <Settings2 className="h-3 w-3 text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground">{param.label}:</span>
+                <span className="font-medium text-muted-foreground">{param.label}:</span>
 
                 {editingParam === idx ? (
                   <div className="flex items-center gap-1">
                     <input
                       autoFocus
-                      className="text-[11px] font-medium bg-transparent border-0 p-0 focus:ring-0 w-20 text-foreground"
+                      className="text-xs font-medium bg-transparent border-0 p-0 focus:ring-0 w-16 text-foreground"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -169,27 +166,21 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
                         setParameters(newParams);
                         setEditingParam(null);
                       }}
-                      className="text-primary hover:scale-110"
+                      className="text-violet-500 hover:scale-110"
                     >
                       <Check className="h-2.5 w-2.5" />
                     </button>
                   </div>
                 ) : (
                   <button
-                    onClick={() => {
-                      setEditingParam(idx);
-                      setEditValue(param.value);
-                    }}
-                    className="text-[11px] font-medium text-foreground hover:text-primary transition-colors cursor-text"
+                    onClick={() => { setEditingParam(idx); setEditValue(param.value); }}
+                    className="text-xs font-medium text-foreground hover:text-violet-500 transition-colors cursor-text"
                   >
                     {param.value}
                   </button>
                 )}
 
-                <button
-                  onClick={() => setParameters(p => p.filter((_, i) => i !== idx))}
-                  className="ml-1 hover:text-destructive transition-colors"
-                >
+                <button onClick={() => setParameters(p => p.filter((_, i) => i !== idx))} className="ml-1 hover:text-destructive">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -198,20 +189,14 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
         )}
 
         {/* Bottom toolbar */}
-        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-3 border-t border-border/30">
-          <div className="flex items-center gap-1">
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2.5 border-t border-border/30 bg-card/50 backdrop-blur">
+          <div className="flex items-center gap-2">
             {/* Image attachment */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-8 w-8", referenceImage ? "text-primary" : "text-muted-foreground")}
+              className={cn("h-8 w-8", referenceImage ? "text-violet-500" : "text-muted-foreground")}
               onClick={() => fileInputRef.current?.click()}
               title="Attach reference image"
             >
@@ -223,47 +208,45 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
               size="sm"
               onClick={handleEnhance}
               disabled={!prompt.trim() || enhancing}
-              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-2"
-              title="AI Prompt Enhancement"
+              className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-violet-500 transition-colors px-2"
             >
-              {enhancing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              {enhancing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">Enhance</span>
             </Button>
 
-          {/* Category selector */}
-          <div className="flex items-center bg-muted rounded-lg p-0.5 ml-2">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setCategory(c.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                  category === c.id
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <c.icon className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">{c.label}</span>
-              </button>
-            ))}
-          </div>
+            {/* Category selector */}
+            <div className="flex items-center bg-muted rounded-lg p-0.5">
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCategory(c.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all",
+                    category === c.id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <c.icon className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">{c.label}</span>
+                </button>
+              ))}
+            </div>
 
             {/* Device selector */}
-          <div className="flex items-center bg-muted rounded-lg p-0.5 ml-2">
+            <div className="hidden sm:flex items-center bg-muted rounded-lg p-0.5">
               {devices.map((d) => (
                 <button
                   key={d.id}
                   onClick={() => setDeviceType(d.id)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all",
                     deviceType === d.id
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <d.icon className="h-3.5 w-3.5" />
-                  {d.label}
                 </button>
               ))}
             </div>
@@ -273,13 +256,15 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
             onClick={handleSubmit}
             disabled={!prompt.trim() || generating}
             size="sm"
-            aria-label="Generate design"
-            className="gradient-primary text-primary-foreground rounded-lg px-4"
+            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-lg px-4 gap-1.5"
           >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="h-4 w-4" />
+              <>
+                <Send className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Generate</span>
+              </>
             )}
           </Button>
         </div>
@@ -288,11 +273,12 @@ export function PromptInput({ onGenerate, generating }: PromptInputProps) {
       {/* Example prompts */}
       {!generating && (
         <div className="flex flex-wrap gap-2 justify-center">
+          <span className="text-xs text-muted-foreground py-1">Try:</span>
           {examples.map((ex) => (
             <button
               key={ex}
               onClick={() => setPrompt(ex)}
-              className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+              className="text-xs px-3 py-1 rounded-full border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-all"
             >
               {ex}
             </button>

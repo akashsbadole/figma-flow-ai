@@ -1,7 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -15,8 +14,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard, Wand2, LayoutGrid, Palette, LogOut, Sparkles,
-  Clock, Image, Crown, Shield
+  LayoutDashboard,
+  Wand2,
+  LayoutGrid,
+  Palette,
+  LogOut,
+  Sparkles,
+  Clock,
+  Image,
+  Crown,
+  Shield,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -37,7 +45,7 @@ const mainNavItems = [
 export function AppSidebar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -64,27 +72,45 @@ export function AppSidebar() {
     : mainNavItems;
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarContent>
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      {/* Brand Header */}
+      <div className="flex items-center justify-between px-3 py-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          {!collapsed && (
+            <span className="font-bold text-sm whitespace-nowrap">AI Design</span>
+          )}
+        </div>
+        <button
+          onClick={toggleSidebar}
+          className={`p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-all ${
+            collapsed ? "absolute -right-3 top-5 bg-sidebar border shadow-md" : ""
+          }`}
+        >
+          <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      <SidebarContent className="py-4">
         <SidebarGroup>
-          <SidebarGroupLabel>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              {!collapsed && <span className="font-bold">AI Design Studio</span>}
-            </div>
+          <SidebarGroupLabel className={`px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 ${collapsed ? "hidden" : ""}`}>
+            Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1 px-2">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
                       end={item.url === "/dashboard"}
-                      className="hover:bg-sidebar-accent/50"
-                      activeClassName="bg-sidebar-accent text-primary font-medium"
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative
+                        hover:bg-sidebar-accent hover:text-sidebar-foreground`}
+                      activeClassName="bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 [&::before]:absolute [&::before]:left-0 [&::before]:top-1/2 [&::before]:-translate-y-1/2 [&::before]:w-[3px] [&::before]:h-6 [&::before]:bg-violet-600 [&::before]:rounded-r"
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -94,17 +120,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="space-y-1">
+
+      <SidebarFooter className="border-t border-sidebar-border p-2 gap-2">
         <ThemeToggle collapsed={collapsed} />
-        <Button
-          variant="ghost"
-          size={collapsed ? "icon" : "default"}
+        
+        <button
           onClick={handleSignOut}
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-destructive transition-all w-full ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
-          <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Sign Out</span>}
-        </Button>
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span>Sign Out</span>}
+        </button>
       </SidebarFooter>
     </Sidebar>
   );
