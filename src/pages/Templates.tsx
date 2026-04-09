@@ -25,7 +25,8 @@ interface Template {
   is_premium: boolean | null;
 }
 
-const categories = ["All", "Landing Pages", "Dashboards", "Forms", "Cards", "Navigation", "E-commerce"];
+const industries = ["All", "Infrastructure", "Fintech", "Healthcare", "Operations", "Marketing", "Real Estate", "Logistics", "Niche"];
+const componentTypes = ["All", "Full Pages", "System Design", "UI Components", "Sub Pages"];
 
 const Templates = () => {
   const { user } = useAuth();
@@ -33,7 +34,8 @@ const Templates = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedIndustry, setSelectedIndustry] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -85,8 +87,19 @@ const Templates = () => {
       !search ||
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       (t.tags || []).some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
-    const matchesCategory = selectedCategory === "All" || t.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+
+    const matchesIndustry = selectedIndustry === "All" || t.category === selectedIndustry;
+
+    let matchesType = true;
+    if (selectedType !== "All") {
+      const metaType = (t as any).metadata?.type;
+      if (selectedType === "Full Pages") matchesType = metaType === "FULL_PAGE";
+      else if (selectedType === "System Design") matchesType = metaType === "SYSTEM_DESIGN";
+      else if (selectedType === "UI Components") matchesType = metaType === "UI_COMPONENT" || metaType === "DASHBOARD";
+      else if (selectedType === "Sub Pages") matchesType = metaType === "PAGE";
+    }
+
+    return matchesSearch && matchesIndustry && matchesType;
   });
 
   const toggleSave = async (templateId: string) => {
@@ -156,18 +169,35 @@ const Templates = () => {
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search templates..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => (
-              <Button
-                key={cat}
-                variant={selectedCategory === cat ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(cat)}
-                className={selectedCategory === cat ? "gradient-primary text-primary-foreground" : ""}
-              >
-                {cat}
-              </Button>
-            ))}
+          <div className="space-y-4">
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-xs font-semibold text-muted-foreground mr-2">Industries:</span>
+              {industries.map((cat) => (
+                <Button
+                  key={cat}
+                  variant={selectedIndustry === cat ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedIndustry(cat)}
+                  className={selectedIndustry === cat ? "gradient-primary text-primary-foreground" : "h-8"}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2 flex-wrap items-center">
+              <span className="text-xs font-semibold text-muted-foreground mr-2">View By Type:</span>
+              {componentTypes.map((type) => (
+                <Button
+                  key={type}
+                  variant={selectedType === type ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedType(type)}
+                  className={selectedType === type ? "bg-accent text-accent-foreground hover:bg-accent/90" : "h-8"}
+                >
+                  {type}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -188,7 +218,7 @@ const Templates = () => {
                   <div className="aspect-video bg-muted relative overflow-hidden">
                     <iframe
                       srcDoc={template.svg_code ?
-                        `<style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;}svg{max-width:100%;max-height:100%;}</style>${template.svg_code}` :
+                        `<style>body{margin:0;display:flex;align-items:${(template as any).metadata?.type === 'FULL_PAGE' ? 'flex-start' : 'center'};justify-content:center;height:100vh;overflow:hidden;}svg{max-width:100%;${(template as any).metadata?.type === 'FULL_PAGE' ? '' : 'max-height:100%;'}}</style>${template.svg_code}` :
                         `<style>body{margin:0;transform:scale(0.5);transform-origin:0 0;width:200%;height:200%;}${template.css_code || ""}</style>${template.html_code || ""}`}
                       className="w-full h-full pointer-events-none"
                       title={template.name}
