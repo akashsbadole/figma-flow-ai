@@ -25,7 +25,7 @@ interface Template {
   is_premium: boolean | null;
 }
 
-const categories = ["All", "Landing Pages", "Dashboards", "Forms", "Cards", "Navigation", "E-commerce"];
+const categories = ["All", "Infrastructure", "Fintech", "Healthcare", "Operations", "Marketing", "Real Estate", "Logistics", "Niche"];
 
 const Templates = () => {
   const { user } = useAuth();
