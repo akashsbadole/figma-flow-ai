@@ -33,8 +33,8 @@ test.describe('Management Flow', () => {
   });
 
   test('should create a new project from dashboard via generator', async ({ page }) => {
-    await page.goto('/dashboard');
-    await expect(page.getByText('Welcome back', { exact: false })).toBeVisible({ timeout: 15000 });
+    await page.goto('/dashboard'); await page.waitForSelector('div.animate-spin', { state: 'hidden', timeout: 30000 });
+    await page.screenshot({ path: 'dashboard-debug.png' }); await expect(page.getByText('Welcome back', { exact: false })).toBeVisible({ timeout: 15000 });
 
     const tryGeneratorBtn = page.getByRole('button', { name: 'Try AI Generator' });
     if (await tryGeneratorBtn.isVisible()) {

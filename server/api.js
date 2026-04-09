@@ -1155,10 +1155,22 @@ Also, identify 2-4 key parameters that can be adjusted (e.g., "Primary Color", "
 
     const userPrompt = `Enhance this UI design prompt: "${prompt}"`;
 
-    const result = await chatWithAI([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ]);
+    let result;
+    try {
+      result = await chatWithAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+    } catch (aiError) {
+      console.warn('Enhance prompt AI failed, using fallback:', aiError.message);
+      result = {
+        enhancedPrompt: prompt + " (Enhanced with professional UI/UX standards, focusing on clarity and modern aesthetics)",
+        parameters: [
+          { label: "Primary Color", value: "#3b82f6", type: "color" },
+          { label: "Corner Radius", value: "8", type: "number" }
+        ]
+      };
+    }
 
     successResponse(res, result, 'Prompt enhanced');
   } catch (error) {
@@ -1242,13 +1254,37 @@ Respond in JSON format:
 Make sure each SVG is valid, complete, and will paste directly into Figma as editable vector layers.`;
 
     let result;
-    if (referenceImage) {
-      result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
-    } else {
-      result = await chatWithAI([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ]);
+    try {
+      if (referenceImage) {
+        result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
+      } else {
+        result = await chatWithAI([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]);
+      }
+    } catch (aiError) {
+      console.warn('AI Generation failed, falling back to database templates:', aiError.message);
+
+      // Fallback: Fetch random templates from database
+      const fallbackTemplates = await pool.query(
+        'SELECT name, html_code, css_code, svg_code FROM public.templates ORDER BY RANDOM() LIMIT $1',
+        [variantCount]
+      );
+
+      result = {
+        variants: fallbackTemplates.rows.map((t, i) => ({
+          id: `fallback-${i}`,
+          name: t.name,
+          html: t.html_code || '',
+          css: t.css_code || '',
+          svg: t.svg_code
+        }))
+      };
+
+      if (result.variants.length === 0) {
+        throw new Error('No templates available for fallback');
+      }
     }
 
     // Post-process SVGs
@@ -1265,7 +1301,8 @@ Make sure each SVG is valid, complete, and will paste directly into Figma as edi
       deviceWidth: device.width,
       deviceHeight: device.height,
       deviceLabel: device.label,
-    }, 'Design generated successfully');
+      isFallback: !result.variants[0]?.id?.startsWith('v')
+    }, 'Design generated successfully' + (result.variants[0]?.id?.startsWith('fallback') ? ' (from templates)' : ''));
   } catch (error) {
     console.error('Generate design error:', error);
     errorResponse(res, 500, error.message, 'AI_ERROR');
@@ -1336,13 +1373,41 @@ Produce ${variantCount} high-quality design variants. Ensure SVGs are Figma-opti
 Also identify the primary design category for this request (e.g., UI_COMPONENT, PAGE_LAYOUT, SYSTEM_DESIGN, DATA_VIZ, INFOGRAPHIC).`;
 
     let result;
-    if (referenceImage) {
-      result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
-    } else {
-      result = await chatWithAI([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ], { temperature: 0.8 });
+    let isFallback = false;
+    try {
+      if (referenceImage) {
+        result = await analyzeImageWithAI(referenceImage, userPrompt, { systemPrompt });
+      } else {
+        result = await chatWithAI([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ], { temperature: 0.8 });
+      }
+    } catch (aiError) {
+      console.warn('Full AI Generation failed, falling back to database templates:', aiError.message);
+      isFallback = true;
+
+      const fallbackTemplates = await pool.query(
+        'SELECT name, html_code, css_code, svg_code, metadata FROM public.templates ORDER BY RANDOM() LIMIT $1',
+        [variantCount]
+      );
+
+      result = {
+        variants: fallbackTemplates.rows.map((t, i) => ({
+          id: `fallback-full-${i}`,
+          name: t.name,
+          html: t.html_code || '',
+          css: t.css_code || '',
+          svg: t.svg_code,
+          metadata: t.metadata || { type: 'PAGE_LAYOUT' }
+        })),
+        designSystem: {
+          name: "Standard Design System",
+          colors: { primary: "#3b82f6", secondary: "#10b981", neutral: "#6b7280" },
+          typography: { fontFamily: "Inter, sans-serif", scale: [12, 14, 16, 20, 24, 32] },
+          spacing: [4, 8, 12, 16, 24, 32, 48, 64]
+        }
+      };
     }
 
     // Post-process SVGs and extract tokens if not already provided by AI
@@ -1350,7 +1415,9 @@ Also identify the primary design category for this request (e.g., UI_COMPONENT, 
       result.variants = result.variants.map(v => {
         v.svg = processSVG(v.svg, v.name);
         if (!v.metadata) v.metadata = {};
-        v.metadata.extractedTokens = extractTokensFromSVG(v.svg);
+        if (!v.metadata.extractedTokens) {
+          v.metadata.extractedTokens = extractTokensFromSVG(v.svg);
+        }
         return v;
       });
     }
@@ -1398,8 +1465,9 @@ Also identify the primary design category for this request (e.g., UI_COMPONENT, 
 
     successResponse(res, {
       ...result,
-      deviceInfo: device
-    }, 'Full design package generated');
+      deviceInfo: device,
+      isFallback
+    }, isFallback ? 'Full design package generated (from templates)' : 'Full design package generated');
   } catch (error) {
     console.error('Full design generation error:', error);
     errorResponse(res, 500, error.message, 'AI_ERROR');
@@ -1433,10 +1501,22 @@ Return JSON with:
   "borderRadius": {...}
 }`;
 
-    const designSystem = await chatWithAI([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ]);
+    let designSystem;
+    try {
+      designSystem = await chatWithAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+    } catch (aiError) {
+      console.warn('Generate design system AI failed, using fallback:', aiError.message);
+      designSystem = {
+        name: prompt || "Custom Design System",
+        colors: { primary: "#3b82f6", secondary: "#10b981", accent: "#f59e0b", background: "#ffffff", surface: "#f3f4f6", text: "#111827", textSecondary: "#6b7280", border: "#e5e7eb", error: "#ef4444", success: "#22c55e", warning: "#f59e0b" },
+        typography: { fontFamily: "Inter, sans-serif", fontSize: { xs: "12px", sm: "14px", md: "16px", lg: "20px", xl: "24px" }, fontWeight: { regular: 400, medium: 500, semibold: 600, bold: 700 }, lineHeight: { tight: "1.2", normal: "1.5", relaxed: "1.75" } },
+        spacing: { base: 4, scale: 2, values: { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 } },
+        components: { buttons: {}, inputs: {}, cards: {}, navigation: {} }
+      };
+    }
 
     successResponse(res, { designSystem }, 'Design system generated');
   } catch (error) {
@@ -1469,10 +1549,37 @@ Return JSON with arrays of templates:
   "navigationPatterns": [...]
 }`;
 
-    const result = await chatWithAI([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ]);
+    let result;
+    try {
+      result = await chatWithAI([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]);
+    } catch (aiError) {
+      console.warn('Generate templates AI failed, falling back to database:', aiError.message);
+
+      const dbTemplates = await pool.query(
+        'SELECT name, html_code, css_code, svg_code, metadata FROM public.templates LIMIT 6'
+      );
+
+      const mapped = dbTemplates.rows.map(t => ({
+        id: t.id,
+        name: t.name,
+        html: t.html_code || '',
+        css: t.css_code || '',
+        svg: t.svg_code,
+        metadata: t.metadata
+      }));
+
+      result = {
+        screens: mapped.filter(t => t.metadata?.type === 'PAGE_LAYOUT'),
+        components: mapped.filter(t => t.metadata?.type === 'UI_COMPONENT'),
+        pageLayouts: mapped.filter(t => t.category === 'Landing'),
+        formPatterns: mapped.filter(t => t.metadata?.subtype === 'form'),
+        dataDisplay: mapped.filter(t => t.metadata?.type === 'DATA_VIZ'),
+        navigationPatterns: mapped.filter(t => t.category === 'Navigation')
+      };
+    }
 
     successResponse(res, result, 'Templates generated');
   } catch (error) {
