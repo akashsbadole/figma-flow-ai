@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [subscription, setSubscription] = useState<{ generations_used?: number; generations_limit?: number } | null>(null);
+  const [subscription, setSubscription] = useState<{ plan?: string; generations_used?: number; generations_limit?: number } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -25,6 +25,7 @@ export function AppHeader() {
   };
 
   const remaining = subscription ? (subscription.generations_limit || 0) - (subscription.generations_used || 0) : 0;
+  const isPro = subscription?.plan === 'pro';
 
   return (
     <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -38,7 +39,14 @@ export function AppHeader() {
       <div className="flex items-center gap-3">
         {user && (
           <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground mr-2">
-            <span>{remaining} generations left</span>
+            {isPro ? (
+              <span className="flex items-center gap-1.5 text-primary font-medium">
+                <Crown className="h-3.5 w-3.5" />
+                Unlimited Pro Access
+              </span>
+            ) : (
+              <span>{remaining} generations left</span>
+            )}
           </div>
         )}
         <ThemeToggle />

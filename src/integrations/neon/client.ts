@@ -137,6 +137,7 @@ export interface Subscription {
   status: string;
   generations_limit: number;
   generations_used: number;
+  freeBetaMode?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -420,6 +421,31 @@ export const api = {
     const authHeader = await getAuthHeaderAsync();
     const res = await fetch(`${API_URL}/api/subscription`, { headers: authHeader });
     return handleResponse(res) as Promise<Subscription>;
+  },
+
+  async betaUpgrade(): Promise<null> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/subscription/beta-upgrade`, {
+      method: 'POST',
+      headers: authHeader,
+    });
+    return handleResponse(res) as Promise<null>;
+  },
+
+  async getAdminSettings(): Promise<Record<string, any>> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/admin/settings`, { headers: authHeader });
+    return handleResponse(res) as Promise<Record<string, any>>;
+  },
+
+  async updateAdminSetting(key: string, value: any): Promise<any> {
+    const authHeader = await getAuthHeaderAsync();
+    const res = await fetch(`${API_URL}/api/admin/settings`, {
+      method: 'POST',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    });
+    return handleResponse(res);
   },
 
   async incrementUsage(): Promise<null> {

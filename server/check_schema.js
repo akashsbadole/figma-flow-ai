@@ -141,10 +141,18 @@ async function checkSchema() {
         generations_used INTEGER DEFAULT 0,
         stripe_customer_id VARCHAR(255),
         stripe_subscription_id VARCHAR(255),
+        is_beta BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // Add is_beta if it doesn't exist
+    try {
+      await pool.query('ALTER TABLE public.user_subscriptions ADD COLUMN IF NOT EXISTS is_beta BOOLEAN DEFAULT FALSE');
+    } catch (e) {
+      console.warn('Note: is_beta column might already exist.');
+    }
     console.log('✓ user_subscriptions table verified');
 
     // 9. Ensure user_roles table exists
@@ -217,6 +225,23 @@ async function checkSchema() {
       );
     `);
     console.log('✓ saved_templates table verified');
+
+    // 12. Ensure system_settings table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.system_settings (
+        key VARCHAR(255) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Seed default settings
+    await pool.query(`
+      INSERT INTO public.system_settings (key, value)
+      VALUES ('free_beta_mode', 'true'::jsonb)
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    console.log('✓ system_settings table verified');
 
     console.log('\n--- Schema verification complete! ---');
   } catch (error) {

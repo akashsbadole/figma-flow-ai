@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Crown, Check, Sparkles, Shield, Infinity as InfinityIcon } from "lucide-react";
 import { api } from "@/integrations/neon/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 const plans = [
@@ -47,6 +47,7 @@ const plans = [
 const Pricing = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: subscription } = useQuery({
     queryKey: ["subscription", user?.id],
@@ -64,10 +65,22 @@ const Pricing = () => {
   });
 
   const currentPlan = subscription?.plan || "free";
+  const isBeta = subscription?.freeBetaMode === true;
 
   const handleUpgrade = async (planId: string) => {
     if (!user) {
       toast({ title: "Authentication required", description: "Please sign in to upgrade.", variant: "destructive" });
+      return;
+    }
+
+    if (isBeta && planId === "pro") {
+      try {
+        await api.betaUpgrade();
+        toast({ title: "Success!", description: "You have been upgraded to Pro for free during our Beta period." });
+        queryClient.invalidateQueries({ queryKey: ["subscription", user?.id] });
+      } catch (error: any) {
+        toast({ title: "Upgrade failed", description: error.message, variant: "destructive" });
+      }
       return;
     }
 
@@ -100,7 +113,7 @@ const Pricing = () => {
               <Card className={`relative overflow-hidden border-border/50 ${plan.popular ? "ring-2 ring-primary shadow-lg" : ""}`}>
                 {plan.popular && (
                   <div className="absolute top-0 right-0 px-3 py-1 text-[10px] font-bold bg-primary text-primary-foreground rounded-bl-lg">
-                    POPULAR
+                    {isBeta && plan.id === "pro" ? "BETA FREE" : "POPULAR"}
                   </div>
                 )}
                 <CardHeader className="pb-4">
@@ -109,8 +122,8 @@ const Pricing = () => {
                     <CardTitle className="text-xl">{plan.name}</CardTitle>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
+                    <span className="text-4xl font-bold">{isBeta && plan.id === "pro" ? "$0" : plan.price}</span>
+                    <span className="text-muted-foreground">{isBeta && plan.id === "pro" ? "during beta" : plan.period}</span>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
