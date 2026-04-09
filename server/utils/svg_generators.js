@@ -58,6 +58,91 @@ export function genHero(title, subtitle) {
   </g>`;
 }
 
+export function genSystemDiagram(nicheName = "SaaS", components = []) {
+  return `
+  <g id="SystemArchitecture" transform="translate(100, 2900)">
+    <text x="500" y="0" fill="white" font-family="Inter" font-size="32" font-weight="800" text-anchor="middle">System Architecture</text>
+    <g transform="translate(0, 100)">
+      <!-- Client -->
+      <rect x="0" y="80" width="120" height="60" rx="8" fill="${colors.primary}" />
+      <text x="60" y="115" fill="white" font-family="Inter" font-size="12" font-weight="600" text-anchor="middle">Client App</text>
+
+      <!-- Arrows -->
+      <path d="M 120 110 L 220 110" stroke="${colors.primary}" stroke-width="2" marker-end="url(#arrow-head)" />
+
+      <!-- API Gateway -->
+      <rect x="230" y="40" width="160" height="140" rx="16" fill="white" fill-opacity="0.05" stroke="${colors.border}" />
+      <text x="310" y="70" fill="white" font-family="Inter" font-size="14" font-weight="700" text-anchor="middle">API Gateway</text>
+
+      <!-- Microservices -->
+      <g transform="translate(450, 0)">
+        <rect x="0" y="0" width="140" height="60" rx="8" fill="${colors.card}" stroke="${colors.border}" />
+        <text x="70" y="35" fill="white" font-family="Inter" font-size="12" text-anchor="middle">${components[0] || 'Auth Service'}</text>
+
+        <rect x="0" y="80" width="140" height="60" rx="8" fill="${colors.card}" stroke="${colors.border}" />
+        <text x="70" y="115" fill="white" font-family="Inter" font-size="12" text-anchor="middle">${components[1] || 'Core Engine'}</text>
+
+        <rect x="0" y="160" width="140" height="60" rx="8" fill="${colors.card}" stroke="${colors.border}" />
+        <text x="70" y="195" fill="white" font-family="Inter" font-size="12" text-anchor="middle">${components[2] || 'Data Sink'}</text>
+      </g>
+
+      <!-- Database -->
+      <path d="M 650 110 L 750 110" stroke="${colors.textMuted}" stroke-width="2" stroke-dasharray="4 4" />
+      <g transform="translate(760, 70)">
+        <path d="M 0 10 C 0 0 100 0 100 10 L 100 70 C 100 80 0 80 0 70 Z" fill="${colors.secondary}" stroke="${colors.accent}" />
+        <ellipse cx="50" cy="10" rx="50" ry="10" fill="${colors.card}" stroke="${colors.accent}" />
+        <text x="50" y="50" fill="white" font-family="Inter" font-size="12" font-weight="600" text-anchor="middle">PostgreSQL</text>
+      </g>
+    </g>
+    <defs>
+      <marker id="arrow-head" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="${colors.primary}" />
+      </marker>
+    </defs>
+  </g>`;
+}
+
+export function genTestimonials() {
+  return `
+  <g id="Testimonials" transform="translate(100, 3400)">
+    <text x="500" y="0" fill="white" font-family="Inter" font-size="32" font-weight="800" text-anchor="middle">Trusted by Leaders</text>
+    <g transform="translate(0, 60)">
+      <rect width="480" height="180" rx="24" fill="${colors.card}" stroke="${colors.border}" />
+      <text x="30" y="50" fill="white" font-family="Inter" font-size="16" font-style="italic">"This changed the way we build."</text>
+      <text x="30" y="140" fill="white" font-family="Inter" font-size="14" font-weight="700">Sarah Chen</text>
+      <text x="30" y="160" fill="${colors.textMuted}" font-family="Inter" font-size="12">CTO at TechScale</text>
+
+      <rect x="520" y="0" width="480" height="180" rx="24" fill="${colors.card}" stroke="${colors.border}" />
+      <text x="550" y="50" fill="white" font-family="Inter" font-size="16" font-style="italic">"Best-in-class performance."</text>
+      <text x="550" y="140" fill="white" font-family="Inter" font-size="14" font-weight="700">Marcus Wright</text>
+    </g>
+  </g>`;
+}
+
+export function genFAQ() {
+  return `
+  <g id="FAQ" transform="translate(100, 3750)">
+    <text x="0" y="0" fill="white" font-family="Inter" font-size="32" font-weight="800">FAQ</text>
+    <g transform="translate(0, 60)">
+      <text x="0" y="0" fill="white" font-family="Inter" font-size="18" font-weight="700">How secure is my data?</text>
+      <text x="0" y="30" fill="${colors.textMuted}" font-family="Inter" font-size="14">We use industry-standard AES-256 encryption for all data at rest.</text>
+
+      <text x="0" y="100" fill="white" font-family="Inter" font-size="18" font-weight="700">Can I export to Figma?</text>
+      <text x="0" y="130" fill="${colors.textMuted}" font-family="Inter" font-size="14">Yes, all designs are SVG-native and Figma-compatible.</text>
+    </g>
+  </g>`;
+}
+
+export function genCTA() {
+  return `
+  <g id="CTA" transform="translate(100, 4100)">
+    <rect width="1000" height="240" rx="32" fill="${colors.primary}" />
+    <text x="500" y="80" fill="white" font-family="Inter" font-size="36" font-weight="900" text-anchor="middle">Ready to revolutionize your workflow?</text>
+    <rect x="400" y="130" width="200" height="56" rx="28" fill="white" />
+    <text x="500" y="165" fill="${colors.primary}" font-family="Inter" font-size="16" font-weight="700" text-anchor="middle">Get Started Now</text>
+  </g>`;
+}
+
 export function genBento(features = []) {
   // features: [{title, desc, size: 'large' | 'small'}]
   return `

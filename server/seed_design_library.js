@@ -38,15 +38,19 @@ async function seed() {
     console.log(`Seeding ${niches.length} full-page SaaS designs...`);
     for (const niche of niches) {
       const svgCode = `
-      <svg width="1200" height="3000" viewBox="0 0 1200 3000" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1200" height="3000" fill="#0F172A" />
+      <svg width="1200" height="4800" viewBox="0 0 1200 4800" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="4800" fill="#0F172A" />
         ${svg.genNav(niche.name)}
         ${svg.genHero(niche.title, niche.sub)}
         ${svg.genBento()}
         ${svg.genServices()}
         ${svg.genPricing()}
-        ${svg.genAboutUs()}
-        ${svg.genFooter(niche.name)}
+        ${svg.genSystemDiagram(niche.name)}
+        ${svg.genTestimonials()}
+        ${svg.genFAQ()}
+        ${svg.genCTA()}
+        ${svg.genAboutUs().replace('2450', '4450')}
+        ${svg.genFooter(niche.name).replace('2600', '4600')}
       </svg>`.trim();
 
       await pool.query(
